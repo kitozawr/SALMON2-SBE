@@ -948,23 +948,30 @@ does not cover a Fermi disc containing no mesh point at all.
 is a Drude absorber, and Eq. (6a) predicts the opposite sign. Same 72² mesh,
 E_F = 0.6 eV, ring at 300 K, +100 fs tail, `sbe_sheet_nlayers` 1 and 2:
 
-| E₀ [kV/cm] | 10 | 30 | 100 | 300 |
-|---|---|---|---|---|
-| u = A₀/k_F | 0.12 | 0.37 | 1.24 | 3.71 |
-| 1 layer, T | 0.7786 | 0.7789 | 0.8279 | **0.8949** |
-| 2 layers, T | 0.6714 | 0.6164 | 0.6936 | **0.7969** |
-| Re σ₁/σ_univ | 10.7 | 11.2 | 8.5 | 5.2 |
-| Re σ₂/σ_univ | 23.2 | 20.7 | 15.1 | 9.6 |
-| T₁²/T₂ | **0.903** | 0.984 | 0.988 | 1.005 |
+| E₀ [kV/cm] | 10 | 30 | 60 | 100 | 300 |
+|---|---|---|---|---|---|
+| u = A₀/k_F | 0.12 | 0.37 | 0.74 | 1.24 | 3.71 |
+| 1 layer, T | 0.7786 | 0.7789 | 0.7978 | 0.8278 | **0.8949** |
+| 2 layers, T | (0.6714) | 0.6164 | 0.6552 | 0.6936 | **0.7969** |
+| Re σ₁/σ_univ | 10.7 | 11.2 | 10.1 | 8.5 | 5.2 |
+| Re σ₂/σ_univ | (23.2) | 20.7 | 17.5 | 15.1 | 9.6 |
+| T₁²/T₂ | (0.903) | **0.984** | **0.971** | **0.988** | 1.005 |
+| \|A−A_E\|/A, 2 layers | **0.81** | 0.07 | 0.02 | 0.01 | 0.00 |
 
-Coherent, the same doping gave T₁²/T₂ = 1.15 at every field; with the ring it is
-0.90–0.99. The cause is the phase of z: Re z/|z| = 0.014 coherent (inductor) against
+The 10 kV/cm column is quarantined: its fluence absorption and electron-energy ledger
+disagree by 5× (A = 0.144 vs A_E = 0.027) where the others agree to ≤7 %. Same
+low-field ring drift as §7.11; `transmission.py` flags it automatically.
+
+Coherent, the same doping gave T₁²/T₂ = 1.15 at every field; with the ring the
+trustworthy points give 0.97–0.99 — below unity at all of them. The effect is smaller
+than the quarantined point suggested (−1 to −3 %, not −10 %) but the sign is
+unambiguous, and the sign is what matters. The cause is the phase of z: Re z/|z| = 0.014 coherent (inductor) against
 0.899 dissipative (Drude resistor). A real CVD sample is resistive, so it sits on the
 branch where T₁² **under**estimates T₂ and √T₂ understates the monolayer conductance —
 the opposite of the coherent conclusion, and the one that applies to a measurement.
 
-Both stacks brighten: +14.9 % for one layer from 10 to 300 kV/cm, +18.7 % for two, and
-+29.3 % measured from the two-layer minimum at 30 kV/cm. The bilayer gains more for the
+Both stacks brighten, measured from their minimum at 30 kV/cm over the clean points:
++14.9 % for one layer, +29.3 % for two. The bilayer gains more for the
 reason Eq. (4a.17) gives — it starts at twice the conductance, where the same
 fractional saturation buys more transmission. σ₂/σ₁ stays near 2 throughout (2.18,
 1.85, 1.78, 1.86). Figure: `wiki/figures/graphene_layers_ring.png`, built by
