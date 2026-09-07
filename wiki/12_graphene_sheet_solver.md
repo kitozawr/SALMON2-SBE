@@ -1370,12 +1370,32 @@ mesh, whereas the density of final states within 0.5 eV of the CBM gives a real 
 floor near 10 meV.) The realized-transfer split reaches $8.7\times10^{-10}$ at the
 production width with the rate intact, which the width alone never does.
 
-One thing the 3D case does *not* show is a zero-field pump in a dark run. `dressed_ref`
-makes the ring read the excess-carrier measure, which is identically zero for every band
-— valence included — at $A = 0$, so an undoped gapped material is inert in the dark by
-construction. A dark control is therefore blind to this bug for Si, GaAs and CdS; it was
-only a discriminator for graphene because graphene is *doped*, and so has carriers at
-zero field. The criterion below is what detects it instead.
+**A dark control does show it — but only on a fine enough mesh, which is a trap.** The
+reasoning that says it cannot is seductive and wrong: `dressed_ref` makes the ring read
+the excess-carrier measure, that measure is zero for every band at $A = 0$, valence
+included, so an undoped gapped material looks inert by construction. A $5^3$ silicon
+dark run agrees — every channel reads exactly $0$, `nex` stays at $0$ for the whole run.
+That is not health. The ring needs a source with $f > {\tt occ\_eps} = 10^{-12}$, and
+the residue of the dressed projection only crosses that threshold once the mesh is fine
+enough. Refining it, with the drive switched off throughout:
+
+| mesh | $k$-points | $n_{\rm elec}$ [cm$^{-3}$] | $n_{\rm hole}$ [cm$^{-3}$] |
+|---|---|---|---|
+| $5^3$ | 125 | 0 | 0 |
+| $7^3$ | 343 | $8.31\times10^{10}$ | $8.55\times10^{10}$ |
+| $9^3$ | 729 | $1.32\times10^{12}$ | $1.32\times10^{12}$ |
+
+(at $t \approx 31$ fs; the $9^3$ run is up to $2.21\times10^{13}$ by 50 fs and still
+climbing linearly). Electrons and holes appear *together* to four
+digits, so these are pairs promoted across the 1.07 eV gap — the Gaussian tail at
+$5.3\sigma$, weighted for absorption of a 13 meV phonon. Meanwhile the trace holds at
+8.000 and the current sits at $10^{-15}$: nothing else in the solver is disturbed. For
+scale, $1.3\times10^{12}$ cm$^{-3}$ is some 100× silicon's intrinsic carrier density at
+300 K, from a calculation with no field in it.
+
+The lesson generalises past this bug: **a dark control run on a cheap mesh is not
+evidence of health**, because the very threshold that makes it cheap also makes it
+silent. Run the control on the production mesh.
 
 `tests/test_eph_detailed_balance.f90` holds a Dirac spectrum at an exact
 $f_{\rm FD}(T_{\rm bath})$ and requires the channel to leave it alone; checks 5–6 repeat
