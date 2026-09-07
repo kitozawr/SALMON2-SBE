@@ -103,7 +103,10 @@ def absorbed_energy(run, cell_A3):
     a = np.loadtxt(glob.glob(os.path.join(run, '*_sbe_rt.data'))[0])
     t = a[:, 0] * 1e-15
     ax = int(np.argmax([np.abs(a[:, 4 + i]).max() for i in range(3)]))
-    A = a[:, 7 + ax]
+    # A in SI (V s / m): the column is fs*V/Angstrom, so 1e-15 * 1e10. Without this the
+    # residue estimate below is out by 1e5 -- it was, and it made a leftover of 1e-7 meV
+    # look like 12 % of the absorbed energy.
+    A = a[:, 7 + ax] * 1e-5
     Et = a[:, 10 + ax] * 1e10
     Ei = a[:, 4 + ax] * 1e10
     J = -a[:, 13 + ax] * J_CONV
