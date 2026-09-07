@@ -282,3 +282,44 @@ restoration**: it subtracts the adiabatic ground-state current of the same trunc
 $H_{\mathbf k}(\mathbf A(t))$ — identically zero in a complete basis, exact at every
 $A$ and for any population, no adjustable quantity. Full account, tables and recipe:
 [`wiki/12`](12_graphene_sheet_solver.md) §6a.
+
+## Addendum (2026-09-07): the same effect in bulk silicon, and what it costs
+
+The 2D sheet made this dramatic, but nothing about it is two-dimensional. Bulk Si on a
+$9^3$ mesh, EPM, driven by the measured DAST THz transient at 1086 kV/cm, dissipators
+off so the only thing under test is the basis:
+
+| `nstate` | captured strength $S$ | $\eta$ (banner) | $\eta$ from $J/A$ at low field |
+|---|---|---|---|
+| 8 | 0.9023 | 9.77 % | 9.75 % |
+| 12 | 0.9773 | 2.27 % | 2.27 % |
+| 20 | 0.9974 | **0.26 %** | — |
+
+The start-up banner and a direct measurement of $|J/A|/n_e$ in the leading tail of the
+pulse agree to three digits, so the printed $\eta$ can be trusted as the real thing and
+not just an estimate. Two consequences worth stating separately.
+
+**What the residue costs.** At $n_b = 8$, the same run with and without
+`yn_sbe_vg_sumrule='y'` over the full 600 fs:
+
+| | sum rule off | sum rule on | |
+|---|---|---|---|
+| $\eta$ ($t < 150$ fs) | 9.77 % | 0.089 % | ÷110 |
+| $\|J\|_{\max}$ [a.u.] | $1.02\times10^{-2}$ | $3.20\times10^{-5}$ | ÷319 |
+| absorbed work [eV/cell] | $3.546\times10^{-1}$ | $1.939\times10^{-4}$ | **÷1828** |
+
+So the absorbed energy — the quantity one actually plots against field — is 99.95 %
+artifact at that basis size. This is the reason a THz absorption curve computed without
+the sum rule cannot be compared to experiment at face value.
+
+**It cannot be repaired afterwards.** The tempting shortcut is to subtract
+$\eta n_e A$ from an existing $J(t)$ using the banner's $\eta$, and so rescue archived
+runs without recomputing them. It does not work: at $n_b = 8$ that leaves
+$8.65\times10^{-2}$ eV/cell against the exact $1.94\times10^{-4}$, still 446× too large.
+The reason is that $\eta$ is not a constant — measured along the pulse it runs 9.75 %
+at 60 fs, 12.1 % at 180 fs, 20.1 % at 260 fs, 26.4 % at 300 fs, because real carriers
+join the truncation residue as the field grows. A single multiplier undercorrects
+exactly where the absorbed energy accumulates. `tests/test_vg_sumrule` shows the same
+thing from the other side: the pure-gauge current gives $\eta = 0.740$ at $A = 0$ but
+$0.483$ at $A = 0.3$, against a linear $\eta_{\rm lin} = 0.740$ throughout. Only the
+adiabatic subtraction tracks it, and it has to run inside the propagation.
