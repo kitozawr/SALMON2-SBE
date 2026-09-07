@@ -134,6 +134,10 @@ def main(argv=None):
                     help='slab thickness for the transmission panel (default %(default)g um), '
                          'single pass with both Fresnel faces, no Fabry-Perot')
     ap.add_argument('--out', default='thz_permittivity.png')
+    ap.add_argument('--absorbed-out', default=None,
+                    help='also write the absorbed-energy figure here: W(E_0) and the '
+                         'effective absorption coefficient, which is where the two '
+                         'regimes -- bleaching then avalanche -- are visible')
     args = ap.parse_args(argv)
 
     fgrid = np.linspace(0.05, 4.0, 400)
@@ -245,6 +249,51 @@ def main(argv=None):
     fig.text(0.008, 0.008, note, fontsize=7, color='#34495e', wrap=True)
     fig.tight_layout(rect=(0, 0.05, 1, 1)); fig.savefig(args.out, dpi=150)
     print(f'# wrote {args.out}')
+
+    if args.absorbed_out:
+        f2, ax2 = plt.subplots(1, 2, figsize=(11.6, 4.6))
+        style = {'Si': ('#c0392b', 'o'), 'GaAs': ('#2980b9', 's')}
+        for mat in ('Si', 'GaAs'):
+            rr = sorted([r for r in rows if r['mat'] == mat], key=lambda x: x['Epk'])
+            if not rr:
+                continue
+            c, mk = style[mat]
+            E = np.array([r['Epk'] for r in rr])
+            W = np.array([r['ab']['W_meV'] for r in rr])
+            al = np.array([r['ab']['alpha_cm'] for r in rr])
+            ax2[0].loglog(E, W, mk + '-', ms=8, color=c, label=mat)
+            ax2[1].loglog(E, al, mk + '-', ms=8, color=c, label=mat)
+            for i in range(len(E) - 1):
+                pwr = np.log(W[i + 1] / W[i]) / np.log(E[i + 1] / E[i])
+                ax2[0].annotate(f'$E^{{{pwr:.1f}}}$',
+                                xy=(np.sqrt(E[i] * E[i + 1]), np.sqrt(W[i] * W[i + 1])),
+                                fontsize=9, color=c, ha='center', va='bottom')
+                ax2[1].annotate(f'$\\times{al[i + 1] / al[i]:.2f}$',
+                                xy=(np.sqrt(E[i] * E[i + 1]), np.sqrt(al[i] * al[i + 1])),
+                                fontsize=9, color=c, ha='center', va='bottom')
+        # what linear absorption would look like: W proportional to the fluence, E^2
+        rr = sorted([r for r in rows if r['mat'] == 'Si'], key=lambda x: x['Epk'])
+        if rr:
+            E0, W0 = rr[0]['Epk'], rr[0]['ab']['W_meV']
+            eg = np.geomspace(80, 4000, 50)
+            ax2[0].loglog(eg, W0 * (eg / E0)**2, '--', lw=1.2, color='#7f8c8d',
+                          label='linear absorption, $W\\propto E_0^2$')
+        ax2[0].set_ylabel('absorbed energy [meV per cell]')
+        ax2[0].set_title('Absorbed energy against peak field\n'
+                         r'$\int J\cdot E\,dt$ to the last zero of $A(t)$', fontsize=9)
+        ax2[1].set_ylabel(r'effective $\alpha$ = W / fluence [cm$^{-1}$]')
+        ax2[1].set_title('The same, divided by the fluence:\nbleaching, then avalanche',
+                         fontsize=9)
+        for a in ax2:
+            a.set_xlabel('peak field $E_0$ [kV/cm]')
+            a.grid(alpha=0.25, which='both'); a.legend(fontsize=8)
+        note = ('Window ends at the last near-zero of A(t): the reversible velocity-gauge residue '
+                'does work c[A^2/2] taken between the ends, so it cancels exactly there. Residue left: '
+                + ', '.join(f'{r["name"].split("_")[0]} {r["Epk"]:.0f} kV/cm {r["ab"]["residue_frac"]:.1%}'
+                            for r in rows) + '.')
+        f2.text(0.008, 0.008, note, fontsize=6.8, color='#34495e', wrap=True)
+        f2.tight_layout(rect=(0, 0.06, 1, 1)); f2.savefig(args.absorbed_out, dpi=150)
+        print(f'# wrote {args.absorbed_out}')
     return 0
 
 
