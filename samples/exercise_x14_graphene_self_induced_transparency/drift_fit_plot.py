@@ -38,7 +38,8 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from transmission import AU_EV, VF_EPM_AU, TruncatedRun          # noqa: E402
-from drude_check import analyze as drude_analyze, run_variable   # noqa: E402
+from drude_check import (analyze as drude_analyze, run_variable,  # noqa: E402
+                         drude_weight_au, KB_AU, Z0)
 from drift_saturation import g_continuum                         # noqa: E402
 from field_scan_plot import (A0_PER_KVCM, CONE_U_MAX, SIGMA_UNIV,  # noqa: E402
                              collect, continuum_curve)
@@ -90,6 +91,20 @@ def main(argv=None):
                          'displaced disc leaves the cone). Give a larger value to see '
                          'the whole scan; everything past CONE_U_MAX is shaded, because '
                          'there the law is being shown, not tested')
+    ap.add_argument('--predict-ef', nargs='*', type=float, default=[],
+                    help='draw the analytic T(E_0) prediction for these dopings [eV] on the '
+                         'left panel. No run needed: the linear sheet response is the '
+                         'equilibrium Drude weight of (E_F, T), the field dependence is '
+                         'G(u)/u with that doping own k_F, and the two go through the sheet '
+                         'boundary condition. Only tau is assumed -- see --predict-tau-fs')
+    ap.add_argument('--predict-dscale', nargs='*', type=float, default=[1.0],
+                    help='scale(s) on the equilibrium Drude weight for --predict-ef. Give '
+                         'two and the band between them is shaded: the runs carry only '
+                         '0.69 D_eq at 0.6 eV (README SS7.16), an unexplained deficit that '
+                         'a prediction from D_eq alone does not know about')
+    ap.add_argument('--predict-tau-fs', type=float, default=45.0,
+                    help='momentum-relaxation time for --predict-ef (default %(default)g fs, '
+                         'the range the 0.6 eV runs measure)')
     ap.add_argument('--e0-max', type=float, default=None,
                     help='draw the LEFT panel (and the law on it) out to this peak field '
                          'in kV/cm, past the last run if you like: the law keeps bending '
@@ -186,6 +201,38 @@ def main(argv=None):
         ax[0].semilogx(earr[:, 0], earr[:, 1], 'o', ms=7, mfc='none', mew=1.4,
                        color='#7f8c8d', ls='none',
                        label='dark control condemned (not fitted)')
+
+    # ---- the law as a PREDICTION at another doping ------------------------------
+    # Nothing is fitted here and no run is needed: D_eq(E_F, T) fixes the linear sheet
+    # response, G(u)/u with that doping's own k_F gives the field dependence, and the
+    # sheet boundary condition turns the pair into a transmission. The saturation field
+    # moves as k_F, i.e. linearly in E_F, so a lighter doping saturates earlier -- which
+    # is the whole reason to want the curve before spending the runs.
+    for ef_p, colp in zip(args.predict_ef, ('#2980b9', '#8e44ad', '#27ae60')):
+        kF_p = (abs(ef_p) / AU_EV) / VF_EPM_AU
+        e_hi = args.e0_max or (e0_max if e0_max else 1000.0)
+        grid = np.geomspace(max(e_hi * 1e-3, 0.3), e_hi, 400)
+        u_p = grid * A0_PER_KVCM / kF_p
+        kT = KB_AU * 300.0
+        D = drude_weight_au(abs(ef_p) / AU_EV, kT)            # Ha
+        tau = args.predict_tau_fs / 0.0241888                  # fs -> a.u.
+        w = 0.0108 / AU_EV                                     # the drive's band centre
+        g0 = g_continuum(1e-6, 300.0, abs(ef_p) / AU_EV)
+        gr = np.array([g_continuum(float(x), 300.0, abs(ef_p) / AU_EV) / g0 for x in u_p])
+        curves = []
+        for sc in (args.predict_dscale or [1.0]):
+            sig = (sc * D / np.pi) / (1.0 / tau - 1j * w) * gr     # a.u., sheet
+            curves.append(np.abs(2.0 / (2.0 + Z0 * sig))**2)
+        lab = (f'PREDICTED, $E_F$ = {ef_p:g} eV ($A_0=k_F$ at '
+               f'{kF_p / A0_PER_KVCM:.0f} kV/cm)')
+        if len(curves) > 1:
+            ax[0].fill_between(grid, np.min(curves, axis=0), np.max(curves, axis=0),
+                               color=colp, alpha=0.18, lw=0, label=lab + ', $D$ band')
+            for c in curves:
+                ax[0].semilogx(grid, c, '-.', lw=1.2, color=colp, alpha=0.85)
+        else:
+            ax[0].semilogx(grid, curves[0], '-.', lw=1.6, color=colp, label=lab)
+        ax[0].axvline(kF_p / A0_PER_KVCM, ls=':', lw=1, color=colp, alpha=0.7)
 
     # the analytic law itself, once, over the range where a displaced disc on a cone
     # is still what the sheet is doing
