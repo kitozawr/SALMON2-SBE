@@ -1249,13 +1249,85 @@ are the thing that leaks.
 sheet that has already taken 136 meV per carrier from a bath it is supposed to be in
 equilibrium with, so $D_{\rm eq}$ evaluated for $f_{\rm FD}(E_F, 300\,{\rm K})$ is the
 wrong reference and the measured $D/D_{\rm eq}=0.43$ is in part a statement about that
-reference. It cannot be the whole explanation: a *thermal* distribution carrying that
-much excess energy would still hold $\ge 0.87\,D_{\rm eq}$ (§4a.0's heating table), so
-what the pump makes is non-thermal. Either way the repair belongs in the detailed balance
-of the e-ph rates, not in the sheet, the mesh, or the drift law.
+reference. The k-resolved snapshots (§4a.5.9) show the pumped state is
+approximately a *hot Fermi-Dirac* at $T_e\approx2260$ K, $\mu\approx0.42$ eV, which by
+§4a.0's heating table costs only $-12\,\%$ in $D$ — so heating accounts for about a
+quarter of the deficit and the rest is not yet explained. The repair belongs in the
+detailed balance of the e-ph rates, not in the sheet, the mesh, or the drift law; §4a.5.9
+is what it turned out to be.
 
 Reproduce the ledger with `channel_budget.py` (x14 README §7.15); always pass `--dark`,
 because without it every column carries the offset above.
+
+#### 4a.5.9 What the zero-field pumping was: detailed balance on the wrong energy
+
+A relaxation channel coupled to a bath at $kT$ has exactly one fixed point, the
+Fermi-Dirac distribution at that $kT$. The e-ph ring did not have it, and §4a.5.8's
+2.75 meV/cell of field-free heating is what that costs.
+
+The Gaussian energy matching has width $\sigma$ (`sbe_search_sigma_e_ev`, 0.1 eV in
+production), so a source is connected to partners at $|\Delta E|$ anywhere within a few
+$\sigma$ of $\hbar\omega_p$ — but the emission/absorption split was taken **once per
+mode**, from $N_B(\hbar\omega_p)$. A pair that actually transfers $\delta$ was then
+weighted by $e^{\hbar\omega_p/kT}$ instead of $e^{\delta/kT}$, so its upward rate was too
+large by $e^{(\delta-\hbar\omega_p)/kT}$. Graphene is where that runs away: the appended
+acoustic mode is $\hbar\omega_{\rm ac} = 5.39$ meV against $\sigma = 0.1$ eV and carries
+$98.2\,\%$ of the channel weight, the two optical modes (196 and 160 meV) having
+$N_B\approx10^{-3}$ and weights 0.003 and 0.015.
+
+Held at an *exact* $f_{\rm FD}(300\,\rm K)$ on a Dirac-like spectrum, `eph_interk_dpop`
+returns, in meV per step:
+
+| $\sigma$ [eV] | before | after | before, undoped ($\mu = 0$) |
+|---|---|---|---|
+| 0.100 | $+1.0418$ | $+1.8\times10^{-5}$ | $+0.0579$ |
+| 0.020 | $+0.0118$ | $+5\times10^{-7}$ | $+1.25\times10^{-4}$ |
+| 0.005 | $+7.9\times10^{-5}$ | $\sim0$ | $+1\times10^{-6}$ |
+| 0.001 | 0 | 0 | 0 |
+
+The leak is governed by $\sigma$, falling about $90\times$ per five-fold narrowing. The
+Fermi level *amplifies* it $18\times$ — there are carriers with a sharp edge to smear —
+but does not cause it. And the bath is innocent: it supplies the right $N_B$; the code
+applied it to the wrong energy.
+
+The dark run shows exactly that shape. Over 350 fs with no field the conduction
+occupation goes from $f(0.50\text{--}0.58\ \rm eV) = 0.90$ to $0.39$ and from
+$f(0.8\text{--}1.0\ \rm eV) = 3.5\times10^{-5}$ to $0.079$, the valence band moves by
+$\le10^{-5}$, and the particle number is conserved to $10^{-11}$ — a Fermi edge
+diffusing outward at fixed density. The tail fits a hot Fermi-Dirac at $T_e\approx2260$
+K, $\mu\approx0.42$ eV, and $k_BT_e = 0.195$ eV is of the order of $\sigma = 0.1$ eV, not
+of the bath's 25.9 meV. Its $\mathrm{Tr}\,\rho H$ rises by $+2.722$ meV/cell against the
+ledger's $+2.749$, which is also the check that `Eall` really is the accumulated work and
+the ledger really is the electronic energy (§4a.5.8).
+
+**The correction.** Evaluate the split at the realized transfer. With $x = |\delta|/kT$,
+
+$$f_{\rm emit} = \frac{N_B+1}{2N_B+1} = \frac{1}{1+e^{-x}},
+\qquad
+f_{\rm abs} = \frac{N_B}{2N_B+1} = \frac{1}{1+e^{x}},
+\tag{4a.20}$$
+
+a logistic in the transferred energy — one exponential, exact at both ends ($\tfrac12 :
+\tfrac12$ for a degenerate pair, $1:0$ for a transfer far above the bath), and reducing
+to the old expression when $\delta = \hbar\omega_p$. A second violation is removed with
+it: the collision prefactor $\nu(\varepsilon)$ was read from the *source* alone, giving
+one pair two different rates for its two directions (a factor 2 across 0.4–0.8 eV at
+$\varepsilon_0 = 0.8$ eV); it is now the geometric mean over the pair, with $\nu$ at the
+sink hoisted into a table so the pair loop — which runs $N_k^2 n_b^2 n_{\rm ph}$ times a
+step — keeps one exponential rather than three.
+
+**Scope.** Gated on the material (`mp%auger_2d_rana`): on for the gapless 2D Dirac
+materials, off for Si, GaAs and CdS, which take the historical branch verbatim and stay
+bit-identical to the validations published with them. The violation is not
+graphene-specific, but their optical modes give $\sigma/\hbar\omega \approx 1$ rather
+than $\approx 20$, so for them it is a small correction and not a runaway; whether to
+enable it there needs its own runs.
+
+`tests/test_eph_detailed_balance.f90` holds a Dirac spectrum at an exact
+$f_{\rm FD}(T_{\rm bath})$ and requires the channel to leave it alone. The existing CPTP
+tests could not have caught this — trace was conserved, populations stayed in range,
+transfers went to energy-matched partners. A dissipator can be a perfectly valid CPTP map
+and still have the wrong fixed point, and only a stationarity test says which.
 
 ## 5. Sheet electrodynamics
 

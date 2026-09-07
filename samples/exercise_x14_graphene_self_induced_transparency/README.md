@@ -1116,6 +1116,64 @@ story — a *thermal* distribution carrying that much excess energy would still 
 ≥0.87 D_eq (§7.9's heating table) — so what the pump makes is non-thermal. The repair
 belongs in the e-ph rates' detailed balance, not in the sheet or the mesh.
 
+**7.16 The zero-field pumping was a broken detailed balance in the e-ph ring.**
+§7.15 measured it and named the channel; this is what it turned out to be. The bug is
+not in the bath temperature and not in the doping — it is in the energy-matching width.
+
+The Gaussian matching has width `sbe_search_sigma_e_ev` (0.1 eV in production), so a
+source is connected to partners at |ΔE| anywhere within a few σ of ħω_p, while the
+emission/absorption split was taken **once per mode** from N_B(ħω_p). A pair that
+actually transfers δ was therefore weighted by exp(ħω_p/kT) instead of exp(δ/kT), and
+for δ ≫ ħω_p the upward rate was too large by exp((δ−ħω_p)/kT). Graphene is where that
+becomes a runaway: its appended acoustic mode is **5.39 meV against a 0.1 eV search
+width** and carries **98.2 %** of the channel weight (the two optical modes, 196 and
+160 meV, have N_B ≈ 10⁻³ and weights 0.003 and 0.015 — they can barely absorb at 300 K).
+
+Held at an *exact* FD(300 K) on a Dirac-like spectrum — where a channel in equilibrium
+with its bath must do nothing — `eph_interk_dpop` gives, in meV per step:
+
+| σ [eV] | before | after | before, **undoped** (μ = 0) |
+|---|---|---|---|
+| 0.100 | **+1.0418** | +0.000018 | +0.0579 |
+| 0.020 | +0.0118 | +0.0000005 | +0.000125 |
+| 0.005 | +0.000079 | ~0 | +0.000001 |
+| 0.001 | 0 | 0 | 0 |
+
+Three things to read off. The leak is **governed by σ**, falling ~90× per 5× narrowing.
+The Fermi level **amplifies** it 18× — there are carriers with a sharp edge to smear —
+but does not cause it: an undoped sheet leaks too. And the bath is innocent: it supplies
+the right N_B, the code applied it to the wrong energy.
+
+That is what the k-resolved dark run shows directly (§7.15): 350 fs with no field moves
+the conduction occupation from f(0.50–0.58 eV) = 0.90 to 0.39 and from f(0.8–1.0 eV) =
+3.5×10⁻⁵ to 0.079, valence untouched, particle number conserved to 10⁻¹¹ — a Fermi edge
+diffusing outward. Fitting the tail gives a hot Fermi–Dirac at **T_e ≈ 2260 K,
+μ ≈ 0.42 eV**, and k_BT_e = 0.195 eV is of the order of σ = 0.1 eV, not of the bath's
+25.9 meV. (The distribution is approximately *thermal*, which corrects the reading in
+an earlier revision of §7.15.)
+
+**The fix**, `eph_thermal_split_de`: evaluate the split at the realized transfer. With
+x = |δ|/kT the pair (N+1, N)/(2N+1) collapses to a logistic, f_emit = 1/(1+e^{−x}),
+f_abs = 1/(1+e^{x}) — one exponential, exact at both ends (½:½ for a degenerate pair,
+1:0 far above the bath). Second correction: the collision prefactor ν(ε) was taken from
+the *source* alone, so one pair had two different rates for its two directions (a factor
+2 across 0.4–0.8 eV at ε₀ = 0.8 eV); it is now the geometric mean over the pair, with
+ν at the sink hoisted into a table so the pair loop keeps one exponential, not three.
+
+**Scope.** Gated on the material (`mp%auger_2d_rana`): on for the gapless 2D Dirac
+materials, off for Si, GaAs and CdS, which take the historical branch verbatim and stay
+bit-identical to the validations published with them. The same violation exists there —
+it is not a graphene-specific bug — but their optical modes make σ/ħω ≈ 1 rather than
+≈ 20, so it is a small correction, not a runaway. Whether to enable it for them needs
+its own runs and is deliberately not decided here.
+
+`tests/test_eph_detailed_balance.f90` holds a Dirac spectrum at an exact FD(T_bath) and
+requires the channel to leave it alone, checks that the residual shrinks with σ, and
+checks that the gate still reproduces the historical path. The existing CPTP tests could
+not have caught this: trace was always conserved, populations always stayed in range,
+and transfers always went to energy-matched partners. A dissipator can be a perfectly
+valid CPTP map and still have the wrong fixed point.
+
 **7.13 A doped sheet is not nstate-converged the way an intrinsic one is.** The
 pure-gauge restoration (§7.1) makes the *undoped* filling basis-independent to 10⁻⁶ in
 T, because it subtracts the adiabatic ground-state current of exactly the same

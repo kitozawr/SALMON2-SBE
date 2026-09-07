@@ -698,11 +698,18 @@ contains
     pure subroutine eph_thermal_split_de(delta, kT, fe, fa)
         real(8), intent(in)  :: delta, kT
         real(8), intent(out) :: fe, fa
-        real(8) :: Nb, denom
-        Nb = min(bose_factor(abs(delta), kT), 1d12)
-        denom = 2d0 * Nb + 1d0
-        fe = (Nb + 1d0) / denom
-        fa = Nb / denom
+        real(8) :: x
+        ! With N = 1/(exp(x)-1) and x = |delta|/kT the pair (N+1, N)/(2N+1) collapses
+        ! to a logistic: (N+1)/(2N+1) = 1/(1+exp(-x)) and N/(2N+1) = 1/(1+exp(x)).
+        ! One exponential, no clamping, and exact at both ends -- 1/2 : 1/2 for a
+        ! degenerate pair, 1 : 0 for a transfer far above the bath temperature.
+        if (kT <= 0d0) then
+            fe = 1d0; fa = 0d0                      ! T = 0: emission only
+            return
+        end if
+        x = min(abs(delta) / kT, 7d2)               ! exp overflow guard
+        fe = 1d0 / (1d0 + exp(-x))
+        fa = 1d0 - fe
     end subroutine eph_thermal_split_de
 
     pure subroutine eph_thermal_split(Nb, fe, fa)
@@ -1702,8 +1709,12 @@ contains
         logical :: do_mask
         integer :: ik, jq, a, b, ip, ipol, ipac
         real(8) :: eps_kin, nu_a, nu_b, fe, fa, dE, shp, th, blk, gam, gamtot, out_tot
-        real(8) :: delta, eps_kin_b
+        real(8) :: delta
         real(8) :: gpart(nba, nk), emid, ibs
+        ! nu at the SINK depends on (b, jq) alone, so it comes out of the pair loop.
+        ! Without this the pair-symmetric prefactor would cost an exp per pair, on top
+        ! of the Gaussian's -- and the pair loop runs nk^2 nba^2 nph times per step.
+        real(8) :: nu_tab(nba, nk)
         logical :: src_cb
         real(8), parameter :: occ_eps = 1d-12
 
@@ -1726,10 +1737,20 @@ contains
             end if
         end if
         if (present(gout)) gout = 0d0
+        if (db_realized) then
+            do ik = 1, nk
+                do a = 1, nba
+                    nu_tab(a, ik) = nu_saturation( &
+                        max(eval(a, ik) - ecbm, evbm - eval(a, ik), 0d0), nu_sat, nu_eps0, nu_n)
+                end do
+            end do
+        else
+            nu_tab = 0d0
+        end if
         ! Each (a, ik) source is independent: partial rates target shared sinks
         ! dpop(b, jq), hence the array reduction; gout(:, ik) is owner-written.
         !$omp parallel do default(shared) schedule(dynamic) &
-        !$omp   private(ik, a, ip, jq, b, eps_kin, eps_kin_b, nu_a, nu_b, fe, fa, dE, &
+        !$omp   private(ik, a, ip, jq, b, eps_kin, nu_a, nu_b, fe, fa, dE, &
         !$omp           delta, shp, th, blk, gam, gamtot, out_tot, gpart, src_cb) &
         !$omp   reduction(+:dpop)
         do ik = 1, nk
@@ -1762,6 +1783,15 @@ contains
                             delta = abs(eval(b, jq) - eval(a, ik))
                             dE = abs(delta - hw(ip))
                             if (db_realized) then
+                                ! The Gaussian never returns a hard zero, so without a
+                                ! cutoff every one of the nk^2 nba^2 pairs pays two
+                                ! exponentials a step. Beyond 8 sigma its weight is
+                                ! e^-32 ~ 1e-14 -- below anything the sum can carry --
+                                ! and dropping those pairs is what keeps the corrected
+                                ! channel as fast as the one it replaces. Inside the
+                                ! db_realized branch only, so the materials that take
+                                ! the historical path stay bit-identical.
+                                if (dE > 8d0 * sigma) cycle
                                 shp = gaussian_shape(dE, sigma)
                                 if (shp <= 0d0) cycle
                                 ! detailed balance on the realized transfer: this is
@@ -1773,9 +1803,7 @@ contains
                                 ! ... and a pair-symmetric nu, so the two directions of
                                 ! one pair share a prefactor (nu(eps) alone differs by a
                                 ! factor 2 across 0.4-0.8 eV at eps0 = 0.8 eV).
-                                eps_kin_b = max(eval(b, jq) - ecbm, evbm - eval(b, jq), 0d0)
-                                nu_b = nu_saturation(eps_kin_b, nu_sat, nu_eps0, nu_n)
-                                nu_b = sqrt(nu_a * nu_b)
+                                nu_b = sqrt(nu_a * nu_tab(b, jq))
                             else
                                 th = merge(fe, fa, eval(b, jq) < eval(a, ik))
                                 if (th <= 0d0) cycle
