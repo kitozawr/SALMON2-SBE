@@ -983,6 +983,139 @@ fractional saturation buys more transmission. σ₂/σ₁ stays near 2 throughou
 `layers_plot.py`, which reads the ring flag from the runs and labels the branch from
 the measured phase rather than assuming it.
 
+**7.14 Testing the drift law itself, not the transmission it produces.** $T(E_0)$ is a
+compressed view of Eq. (4a.13): the sheet BC $T=|2/(2+z)|^2$ is nonlinear in $z$ and
+depends on the *phase* of $z$, which the drift law says nothing about. The test that
+removes both is the fit-free inversion of §7.11 — $\tau(\omega)=-\mathrm{Im}\,\sigma/(\omega\,
+\mathrm{Re}\,\sigma)$, $D(\omega)=-\pi(\omega^2+1/\tau^2)\mathrm{Im}\,\sigma/\omega$ — because it
+returns $D$ and $\tau$ separately, and a conductance that falls because the disc drifted
+looks identical in $T$ to one that falls because the carriers scatter more. 72², E_F = 0.6 eV,
+ring on, anchored at 30 kV/cm (the lowest field its dark control clears):
+
+| E₀ [kV/cm] | 30 | 60 | 100 | 300 |
+|---|---|---|---|---|
+| u = A₀/k_F | 0.371 | 0.742 | 1.237 | 3.711 |
+| D [eV] | 0.2581 | 0.2309 | 0.2010 | 0.1283 |
+| τ [fs] | 59.1 | 53.9 | 58.0 | 62.7 |
+| D(u)/D(u₀) | 1.000 | **0.894** | **0.779** | 0.497 |
+| G(u)/u, same normalisation | 1.000 | **0.941** | **0.750** | 0.273 |
+| residual | — | −5.0 % | +3.8 % | +82 % (off the cone) |
+
+The law holds to 5 % and 4 % where it applies, and τ moves by ±8 % about 58 fs with no
+trend — so the fall is weight, not scattering, which is the claim T(E₀) alone cannot
+establish. Past u = 2 the residual runs away, as §7.12 requires. Build the figure
+(`wiki/figures/graphene_drift_fit_1layer.png`) with
+
+```bash
+V=<scan root>
+python3 drift_fit_plot.py \
+  --series "one layer, ring on, 72\$^2\$:$V/runs/E{30,60,100,300}kVcm_diss/*_rt.data" \
+  --excluded "$V/runs/E3kVcm_diss/*_rt.data" "$V/runs/E10kVcm_diss/*_rt.data" \
+  --anchor-kvcm 30 --u-max 4.0 --e0-max 1000
+```
+
+`--e0-max` carries the law past the last run so its whole bend is visible; the curve is
+also drawn *down* through the quarantined fields, which is worth doing: at 10 kV/cm the
+condemned point lands on the law to 0.4 %, at 3 kV/cm it is 2.8 % off. The contamination
+is not a uniform offset that could be calibrated away — invisible in T at 14 % dark
+current, plain at 36 % — which is why §7.11 gives a threshold and not a correction.
+
+Two caveats. It is **two independent points** (four fields clear the dark control, one is
+the anchor, one is off the cone); the `prod_nk297_ef02_layers` set is where to repeat it,
+because at E_F = 0.2 eV the saturation field is 27 kV/cm and the whole range 0 < u < 2 is
+reachable at fields the dark control clears. And **only the shape is tested**: the same
+inversion puts the ring run's absolute weight at D/D_eq = 0.43 — see §7.15.
+
+**The collisionless sheet does not obey the law**, which is the opposite of what the
+derivation suggests, Eq. (4a.13) being collisionless itself. Same inversion, coherent
+runs, both meshes, same anchor:
+
+| u | 0.012 | 0.371 | 0.742 | 1.237 | 3.711 |
+|---|---|---|---|---|---|
+| D(u)/D(u₀), 147² | 0.963 | 1.000 | 1.030 | 1.020 | 0.718 |
+| D(u)/D(u₀), 72² | 0.896 | 1.000 | 1.055 | 1.006 | 0.698 |
+| G(u)/u | 1.018 | 1.000 | 0.941 | 0.750 | 0.273 |
+| residual, 147² | −5 % | — | +10 % | +36 % | +163 % |
+
+Its absolute weight is right (D/D_eq = 1.01 at 147², so the doped ground state and the
+f-sum restoration are doing their job) but its field dependence is not: D *rises* to a
+maximum near u ≈ 0.74 and does not start falling until u > 2. That rise is the
+conductivity bump of §7.11, reached by a second route: measured from each run's own
+lowest field it is +17.7 % at 72² and +7.0 % at 147², against +19 % and +7.6 % for the
+bump in Re σ on the same meshes. Two differently-extracted quantities agreeing to under a
+per cent on both meshes says the bump belongs to the solution, not to either diagnostic.
+Refinement halves it and does not remove it, exactly as §7.11 found.
+
+The reading this suggests — a hypothesis, not a result — is that G(u)/u is a *quasi-static
+chord* response, assuming the occupied disc sits at the position belonging to the
+instantaneous A(t). A collisionless run has nothing to enforce that and keeps its weight
+up; a run whose momentum relaxation (58 fs) is short against the drive period (300 fs) is
+held near the quasi-static distribution and the geometry shows through. The test that
+would settle it is cheap and not done: vary τ through the lattice temperature and see
+whether the agreement tracks τ/T_drive rather than the presence of the ring.
+
+**7.15 The channel ledger: what e-ph does, and the one thing it does wrong.**
+`*_sbe_channels.data` carries a cumulative per-cell ledger — dN (conduction-population
+change) and dE [Ha] (the eigenvalue-weighted energy the electrons *gained*) for each ring
+channel. Read it together with `*_sbe_rt_energy.data`, whose Eall is **not** Tr(ρH):
+`realtime_ssbe.f90` accumulates `energy += (E_tot·−J)·volume·dt`, the work the local field
+does on the sheet. So Eall = W_field is an integration identity, and the energy left in
+the electron gas is E_elec = W_field + Σ_ch dE_ch. Exactly one channel has a bath on the
+other side — e-ph — so −dE_eph is what the carriers hand to the phonons; Auger and impact
+ionization redistribute *within* the electron gas and their dE must come out near zero
+while their dN does not. `channel_budget.py` does this, with the dark run subtracted:
+
+```bash
+python3 channel_budget.py "$V/runs/E*kVcm_diss/*_rt.data" --dark "$V/runs/dark_diss/*_rt.data"
+```
+
+72², E_F = 0.6 eV, ring on, dark-subtracted, per unit cell (0.01512 carriers/cell):
+
+| E₀ [kV/cm] | 3 | 10 | 30 | 60 | 100 | 300 |
+|---|---|---|---|---|---|---|
+| W_field [meV] | 0.0017 | 0.0203 | 0.1682 | 0.6335 | 1.5119 | 8.5315 |
+| to the lattice, −dE_eph [meV] | 0.0014 | 0.0173 | 0.0885 | 0.2466 | 0.6423 | 5.2112 |
+| … as % of W | 82 % | 85 % | 53 % | 39 % | 43 % | 61 % |
+| E_elec left [meV] | 0.0003 | 0.0030 | 0.0797 | 0.3870 | 0.8694 | 3.3220 |
+| dN_eph /cell | 5.9e−11 | 4.8e−10 | 1.2e−08 | 2.4e−07 | 9.5e−07 | 4.0e−06 |
+| dN_rana /cell | −1.3e−08 | −1.5e−07 | −1.3e−06 | −6.1e−06 | −5.1e−05 | −2.3e−03 |
+| dE_rana [meV] | −4e−09 | −5e−08 | −1e−06 | −2e−07 | −2e−04 | 1.6e−03 |
+
+**e-ph is an energy sink, not a population source.** It removes 39–61 % of the absorbed
+work to the lattice inside the 400 fs window while creating almost no pairs: dN_eph tops
+out at 4.0e−6 per cell at 300 kV/cm, 0.03 % of the doped carriers. **Rana is the
+opposite** — dN_rana reaches −2.3e−3 per cell, 15 % of the carriers, with dE_rana four
+orders of magnitude below W. That is exactly right for Auger: it moves carriers, not
+energy, and the near-zero dE column is the check that it does. The 3 and 10 kV/cm
+percentages are ratios of numbers at the 1e−3 meV level and are not meaningful.
+
+**The zero-field pathology is e-ph, alone.** In the `dark_diss` control — no drive at all —
+the ledger reads
+
+| channel | dN /cell | dE [meV/cell] |
+|---|---|---|
+| e-ph | +2.8e−10 | **+2.7489** |
+| Rana | −4.6e−10 | +0.0000 |
+| impact ionization, ring Auger | 0 | 0 |
+
+e-ph pumps 2.75 meV per cell into the electrons with the field switched off — **182 meV
+per doped carrier**, of which 136 meV is already in by the time the pulse peaks at
+~150 fs. For scale, the entire work done by the 100 kV/cm pulse is 1.51 meV/cell, so the
+spurious pump is 1.8× the whole signal at that field. This is the energetic face of the
+dark current of §7.11, and it names the channel: at this mesh Rana contributes
++0.0000 meV and −4.6e−10 carriers at zero field, i.e. nothing. **So switching the phonons
+off and keeping Auger is a viable way to run a clean dissipative sheet at this mesh** —
+which was not true of the `nfs == 0` gain bug of §7.12b, a different failure on a mesh
+that cannot represent the doping at all, where Auger alone still grew the current.
+
+It is also the leading suspect for the missing Drude weight of §7.14. The pulse arrives
+at a sheet that has already absorbed 136 meV per carrier from a bath it should be in
+equilibrium with, so the D_eq computed for FD(E_F, 300 K) is the wrong reference and the
+measured D/D_eq = 0.43 is partly a statement about the reference. It cannot be the whole
+story — a *thermal* distribution carrying that much excess energy would still keep
+≥0.87 D_eq (§7.9's heating table) — so what the pump makes is non-thermal. The repair
+belongs in the e-ph rates' detailed balance, not in the sheet or the mesh.
+
 **7.13 A doped sheet is not nstate-converged the way an intrinsic one is.** The
 pure-gauge restoration (§7.1) makes the *undoped* filling basis-independent to 10⁻⁶ in
 T, because it subtracts the adiabatic ground-state current of exactly the same
@@ -1086,4 +1219,8 @@ path, experiment conversion), `field_scan_plot.py` (the T(E₀)/σ(E₀) figure)
 sheet density, k_F, partially occupied k-points — the pre-flight check for a doped
 run), `drift_saturation.py` (the universal drift-saturation curve σ_eff/σ_lin
 against A₀/k_F, continuum against any mesh — the diagnostic that separates the
-physical brightening from the discretization bump, wiki/12 §4a.5).
+physical brightening from the discretization bump, wiki/12 §4a.5),
+`drift_fit_plot.py` (one layer against the analytic law, with the Drude weight and τ
+separated so drift saturation and scattering can be told apart, §7.14),
+`channel_budget.py` (the per-channel energy ledger: how much of the absorbed work goes
+to the lattice, and which channel is pumping at zero field, §7.15).

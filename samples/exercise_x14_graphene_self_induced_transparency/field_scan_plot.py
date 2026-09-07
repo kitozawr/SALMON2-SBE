@@ -75,8 +75,13 @@ def collect(patterns):
             (rows[0][9] if rows else None))
 
 
-def continuum_curve(e0, sig_c0, ef_ev, t_init_k, t0=None):
-    """Continuum drift-saturation prediction of T(E_0), anchored on the LOWEST-field run.
+def continuum_curve(e0, sig_c0, ef_ev, t_init_k, t0=None, e0_anchor=None):
+    """Continuum drift-saturation prediction of T(E_0), anchored on one field.
+
+    The anchor is the lowest field given unless e0_anchor names another one -- which it
+    must whenever the lowest field of a scan is not the one being trusted (a field its
+    dark control condemned, say), and whenever e0 is a plotting grid rather than the run
+    fields themselves. sig_c0 and t0 have to come from that same anchor run.
 
     The velocity-gauge displacement k -> k + A turns the direction of a Dirac-cone
     velocity but not its modulus, so the chord response of the whole doped disc is
@@ -103,11 +108,43 @@ def continuum_curve(e0, sig_c0, ef_ev, t_init_k, t0=None):
         disc = cphi**2 - 1.0 + 1.0 / max(t0, 1e-12)
         r0 = 2.0 * (-cphi + np.sqrt(max(disc, 0.0)))
     z0 = r0 * (zb / abs(zb)) if abs(zb) > 0 else r0 + 0j
-    u = np.asarray(e0) * A0_PER_KVCM / kF
+    u = np.asarray(e0, float) * A0_PER_KVCM / kF
     ef_au = abs(ef_ev) / AU_EV
-    g0 = g_continuum(float(u[0]), t_init_k, ef_au)
+    u_a = (float(e0_anchor) * A0_PER_KVCM / kF) if e0_anchor is not None else float(u[0])
+    g0 = g_continuum(u_a, t_init_k, ef_au)
     ratio = np.array([g_continuum(float(x), t_init_k, ef_au) / g0 for x in u])
     return np.abs(2.0 / (2.0 + z0 * ratio))**2
+
+
+def report_residual(label, e0, tdat, tcont, kF):
+    """Per-point residual of the data against the continuum drift curve.
+
+    Split at u = 1 because the two sides miss for different reasons: below the
+    saturation field a shortfall is the k-mesh artifact of the Fermi disc
+    (README SS7.11), above it the cone stops being a cone (trigonal warping,
+    Landau-Zener pairs) and, if the ring is on, momentum relaxation keeps the
+    disc from following A(t) rigidly -- which is the one assumption G(u) makes.
+    Points past CONE_U_MAX are not reported: the curve is not drawn there either.
+    """
+    e0 = np.asarray(e0, float)
+    u = e0 * A0_PER_KVCM / kF
+    dev = 100.0 * (np.asarray(tdat, float) - tcont) / np.maximum(tcont, 1e-12)
+    keep = u <= CONE_U_MAX
+    print(f'# residual T_data / T_continuum - 1, anchored on this series own lowest '
+          f'field E_0 = {e0[0]:g} kV/cm  [{label}]')
+    for ui, ei, di in zip(u[keep], e0[keep], dev[keep]):
+        print(f'#   E_0 = {ei:8.1f} kV/cm   u = {ui:6.3f}   {di:+7.2f} %')
+    lo = keep & (u <= 1.0)
+    hi = keep & (u > 1.0)
+    if lo.any():
+        print(f'#   largest DIP below the curve at u <= 1 (k-mesh artifact of the '
+              f'Fermi disc): {np.min(dev[lo]):+.1f} %')
+    if hi.any():
+        print(f'#   deviation at u > 1 (warping / pair creation / momentum relaxation, '
+              f'NOT the mesh): {np.min(dev[hi]):+.1f} %')
+    if (~keep).any():
+        print(f'#   {int((~keep).sum())} point(s) past u = {CONE_U_MAX:g} not compared: '
+              f'the displaced-disc picture has left the cone')
 
 
 def main(argv=None):
@@ -125,6 +162,11 @@ def main(argv=None):
                     help='overlay the parameter-free continuum drift-saturation curve '
                          'T(sigma_lin G(u)/u), anchored on the lowest-field run: the gap '
                          'to it is the k-mesh artifact of the Fermi disc')
+    ap.add_argument('--excluded', nargs='*', default=[],
+                    help='runs to DRAW but never fit: hollow markers, no line, no '
+                         'continuum anchor. For fields a dark control condemned '
+                         '(dark/peak > 10 %%, README SS7.11) -- they belong in the '
+                         'figure as evidence, not in the comparison')
     ap.add_argument('--out', default='doped_vs_intrinsic.png')
     ap.add_argument('--title', default=None)
     ap.add_argument('--doped-label', default=None,
@@ -155,6 +197,7 @@ def main(argv=None):
         arr, _ef, asig, atk, _nl, _nk = collect([g for g in re.split(r'[:\s]+', pat) if g])
         if arr.size:
             extra.append((lab, arr, asig, _ef or ef, atk))
+    exc = collect(args.excluded)[0] if args.excluded else np.empty((0, 5))
     fig, ax = plt.subplots(1, npan, figsize=(5.5 * npan, 4.0))
     dlab = args.doped_label or f'doped, $E_F$ = {ef:g} eV (metal)'
     ax[0].semilogx(dop[:, 0], dop[:, 1], 'o-', color='#c0392b', label=dlab)
@@ -163,8 +206,11 @@ def main(argv=None):
         if args.continuum:
             tc = continuum_curve(arr[:, 0], asig[0], aef, atk, t0=arr[0, 1])
             if tc is not None:
-                mv = (arr[:, 0] * A0_PER_KVCM / kF <= CONE_U_MAX) if kF else slice(None)
+                akF = (abs(aef) / AU_EV) / VF_EPM_AU if aef else kF
+                mv = (arr[:, 0] * A0_PER_KVCM / akF <= CONE_U_MAX) if akF else slice(None)
                 ax[0].semilogx(arr[mv, 0], tc[mv], ':', lw=1.4, color=col, alpha=0.75)
+                if akF:
+                    report_residual(lab, arr[:, 0], arr[:, 1], tc, akF)
     uu = dop[:, 0] * A0_PER_KVCM / kF if kF else np.zeros(len(dop))
     if args.continuum:
         tc = continuum_curve(dop[:, 0], dsig[0], ef, tinit, t0=dop[0, 1])
@@ -172,15 +218,11 @@ def main(argv=None):
             mv = (uu <= CONE_U_MAX) if kF else slice(None)
             ax[0].semilogx(dop[mv, 0], tc[mv], ':', lw=1.6, color='#c0392b',
                            label=f'continuum drift saturation $G(u)/u$, $u\\leq{CONE_U_MAX:g}$')
-            lo = uu <= 1.0
-            if lo.any():
-                dev = 100.0 * np.min((dop[lo, 1] - tc[lo]) / np.maximum(tc[lo], 1e-12))
-                print(f'# largest DIP below the continuum curve at u <= 1 (the k-mesh '
-                      f'artifact of the Fermi disc): {dev:+.1f} %')
-            if (~lo).any():
-                dev2 = 100.0 * np.min((dop[~lo, 1] - tc[~lo]) / np.maximum(tc[~lo], 1e-12))
-                print(f'# deviation at u > 1 (Landau-Zener pair creation + trigonal '
-                      f'warping, NOT the mesh): {dev2:+.1f} %')
+            report_residual(dlab, dop[:, 0], dop[:, 1], tc, kF)
+    if exc.size:
+        ax[0].semilogx(exc[:, 0], exc[:, 1], 'o', ms=7, mfc='none', mew=1.4,
+                       color='#7f8c8d', ls='none',
+                       label='dark control condemned (not fitted)')
     if ins.size:
         ax[0].semilogx(ins[:, 0], ins[:, 1], 's-', color='#2c3e50', label='intrinsic (semimetal)')
     if e_sat:
@@ -228,6 +270,9 @@ def main(argv=None):
     ax[ia].semilogx(dop[:, 0], dop[:, 4], 'o-', color='#c0392b', label=f'Re $\\sigma$, {dlab}')
     for (lab, arr, _s, _e, _t), col, mk in zip(extra, ('#e67e22', '#16a085', '#8e44ad'), ('D-', 'v-', '^-')):
         ax[ia].semilogx(arr[:, 0], arr[:, 4], mk, ms=5, color=col, label=f'Re $\\sigma$, {lab}')
+    if exc.size:
+        ax[ia].semilogx(exc[:, 0], exc[:, 4], 'o', ms=7, mfc='none', mew=1.4,
+                        color='#7f8c8d', ls='none', label='not fitted')
     for z, tm in zip(zs_meas, args.t_meas):
         ax[ia].axhline(z, ls=':', c='#27ae60')
         ax[ia].annotate(f'measured {z:.1f} $\\sigma_{{univ}}$ (T = {100 * tm:.0f} %)',

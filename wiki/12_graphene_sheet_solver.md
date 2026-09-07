@@ -1066,6 +1066,197 @@ twice the conductance, where the same fractional saturation of $\sigma$ buys mor
 transmission. $\sigma_2/\sigma_1$ stays near 2 throughout (2.18, 1.85, 1.78, 1.86), so
 the layers really are adding conductance and not something else.
 
+#### 4a.5.7 Testing the drift law itself: the Drude weight, not the transmission
+
+Everything above compared $T(E_0)$ with the law. That is what an experiment sees, but it
+is a poor test of Eq. (4a.13), for two reasons that have nothing to do with the physics
+of the cone. The sheet boundary condition $T=|2/(2+z)|^2$ is nonlinear in $z$, so the
+same fractional change in the sheet response reads differently depending on where the
+sheet sits; and it depends on the *phase* of $z$, which the drift law says nothing
+about — Eq. (4a.13) predicts how the response shrinks, not whether it is reactive or
+resistive. A test that removes both is to compare the quantity the law actually
+predicts: the low-frequency weight.
+
+The route is the fit-free inversion of §4a.5.5. The Drude form
+$\sigma(\omega)=(D/\pi)/(1/\tau + i\omega)$ inverts bin by bin with nothing adjustable,
+
+$$\tau(\omega) = -\frac{\mathrm{Im}\,\sigma}{\omega\,\mathrm{Re}\,\sigma},
+\qquad
+D(\omega) = -\pi\,\frac{\omega^2 + 1/\tau^2}{\omega}\,\mathrm{Im}\,\sigma ,
+\tag{4a.18}$$
+
+so each run returns its own $D$ *and* its own $\tau$, and the two can be read against
+the field separately. That separation is the point: a sheet whose conductance falls
+because the disc has drifted and a sheet whose conductance falls because the carriers
+scatter more look identical in $T(E_0)$, and are told apart at a glance by whether
+$\tau$ moved. $72^2$, $E_F = 0.6$ eV, ring on, anchored at 30 kV/cm (the lowest field
+its dark control clears):
+
+| $E_0$ [kV/cm] | 30 | 60 | 100 | 300 |
+|---|---|---|---|---|
+| $u = A_0/k_F$ | 0.371 | 0.742 | 1.237 | 3.711 |
+| $D$ [eV] | 0.2581 | 0.2309 | 0.2010 | 0.1283 |
+| $\tau$ [fs] | 59.1 | 53.9 | 58.0 | 62.7 |
+| $D(u)/D(u_0)$ | 1.000 | **0.894** | **0.779** | 0.497 |
+| $G(u)/u$, normalised the same way | 1.000 | **0.941** | **0.750** | 0.273 |
+| residual | — | $-5.0\,\%$ | $+3.8\,\%$ | $+82\,\%$ (off the cone) |
+
+![one layer with the ring against the drift law](figures/graphene_drift_fit_1layer.png)
+
+**The law holds where it is supposed to, and $\tau$ says why.** Over $0.37 \le u \le
+1.24$ the measured weight follows the parameter-free curve to $5\,\%$ and $4\,\%$, while
+$\tau$ moves by $\pm8\,\%$ about 58 fs with no trend — the fall is weight, not
+scattering, which is exactly the claim Eq. (4a.13) makes and the claim $T(E_0)$ alone
+cannot establish. Past $u = 2$ the residual runs away to $+82\,\%$, as §4a.5.4 requires:
+there the excursion is no longer small against the zone, the band is warped and pairs
+are being made, and $G(u)$ is being quoted outside the picture it was derived in. The
+figure shades that region rather than hiding it.
+
+The curve is also carried *down* through the two fields the dark control threw out,
+which turns out to be worth doing. At 10 kV/cm the quarantined point lands on the law to
+$0.4\,\%$; at 3 kV/cm it sits $2.8\,\%$ above it. So the contamination is not a uniform
+offset that could be calibrated away — it is invisible in $T$ at $14\,\%$ dark current and
+plain at $36\,\%$ — which is the same conclusion §4a.5.5 reached from the energy ledger,
+and the reason the rule there is a threshold and not a correction.
+
+Two things this does **not** show, and both matter.
+
+*It is two independent points.* Four fields survive the dark control, one of them is
+the anchor, and one is off the cone. The agreement is a real test but a thin one; the
+$297^2$, $E_F=0.2$ eV set (§4a.2) is where it should be repeated, because there $A_0=k_F$
+falls at 27 kV/cm and the whole range $0 < u < 2$ is reachable at fields the dark
+control clears.
+
+*Only the shape is tested; the magnitude is off by a factor of two.* The same inversion
+puts the ring run's absolute weight at $D/D_{\rm eq} = 0.43$ — the ring removes more
+than half the low-frequency weight of the doping it was given. Two candidates are
+excluded by measurement: carrier heating cannot do it (at $n=3\times10^{13}$ cm$^{-2}$
+the equilibrium weight only falls to $0.87\,D$ even at 3000 K, and rises again above
+that), and neither can the field-independent dark current (subtracting the `dark_diss`
+trajectory from every run changes $D$ by $0.2\,\%$ and $\tau$ by $\le1\,\%$). Momentum
+relaxation towards the lattice-frame distribution should broaden the Drude peak, not
+drain it, so this is a genuine open item about the dissipator rather than about the
+cone — and §4a.5.8, which reads the per-channel ledger, names e-ph as the suspect and
+measures what it has already done to the sheet before the pulse arrives. It does not touch the field dependence — every entry in the table above is a
+ratio taken within one run — but it does mean the ring's *absolute* low-field
+conductance should not be compared with a measurement until it is understood.
+
+**The collisionless sheet does not obey the law**, which is the opposite of what the
+derivation would suggest, since Eq. (4a.13) is itself collisionless. The same inversion
+on the coherent runs, both meshes, anchored the same way:
+
+| $u$ | 0.012 | 0.371 | 0.742 | 1.237 | 3.711 |
+|---|---|---|---|---|---|
+| $D$ [eV], $147^2$ | 0.6080 | 0.6313 | 0.6503 | 0.6440 | 0.4536 |
+| $D(u)/D(u_0)$, $147^2$ | 0.963 | 1.000 | 1.030 | 1.020 | 0.718 |
+| $D(u)/D(u_0)$, $72^2$ | 0.896 | 1.000 | 1.055 | 1.006 | 0.698 |
+| $G(u)/u$ | 1.018 | 1.000 | 0.941 | 0.750 | 0.273 |
+| residual, $147^2$ | $-5\,\%$ | — | $+10\,\%$ | $+36\,\%$ | $+163\,\%$ |
+
+Its absolute weight is right — $D/D_{\rm eq} = 1.01$ at $147^2$, so the doped ground
+state and the f-sum restoration are doing their job — but its field dependence is
+wrong: $D$ *rises* to a maximum near $u\approx0.74$ and does not begin to fall until
+$u>2$, where the law wants it down by a quarter already at $u=1.24$.
+
+That rise is the conductivity bump of §4a.5.5, arriving here by a second and independent
+route. Measured from each run's own lowest field, $D$ peaks $+17.7\,\%$ above it at $72^2$
+and $+7.0\,\%$ at $147^2$ — against $+19\,\%$ and $+7.6\,\%$ for the bump in
+$\mathrm{Re}\,\sigma$ on the same two meshes. Two quantities extracted in different ways
+(a band-averaged $\mathrm{Re}\,\sigma$ referred to the incident field, and $D$ inverted
+from $\sigma(\omega)$ bin by bin) agreeing to under a per cent on both meshes is a
+strong check that the bump is a property of the solution and not of either diagnostic.
+Refinement halves it and does not remove it, exactly as §4a.5.5 found: partly the
+discretization of the Fermi disc, partly still unexplained.
+
+The reading this suggests — and it is a hypothesis, not a result — is that $G(u)/u$ is a
+*quasi-static chord* response: it assumes the occupied disc is at the displaced position
+belonging to the instantaneous $A(t)$, with nothing left over. A collisionless run has
+no mechanism to enforce that, and keeps its weight up; a run whose momentum relaxation
+(58 fs) is short against the drive period (300 fs) is held near the quasi-static
+distribution, and the geometry shows through. The test that would settle it is cheap and
+not yet done: vary $\tau$ through the lattice temperature and see whether the agreement
+tracks $\tau/T_{\rm drive}$ rather than the presence of the ring.
+
+Reproduce the figure and both tables with `drift_fit_plot.py` (x14 README §7.14).
+
+#### 4a.5.8 The channel ledger: what e-ph does, and the one thing it does wrong
+
+The solver keeps a cumulative per-cell ledger of every ring channel in
+`*_sbe_channels.data` — $dN$, the conduction-population change, and $dE$ [Ha], the
+eigenvalue-weighted energy the *electrons gained*, accumulated in `ring_ledger` as
+$\sum_k \varepsilon_{nk}\,\delta f_{nk}/N_k$. It has to be read together with
+`*_sbe_rt_energy.data`, whose `Eall` is **not** $\mathrm{Tr}\,\rho H$:
+`realtime_ssbe.f90` accumulates `energy += (E_tot . -J) volume dt`, the work the local
+field does on the sheet. So
+
+$$\Delta E_{\rm all} = W_{\rm field}
+\qquad\text{(an integration identity)},
+\qquad
+E_{\rm elec} = W_{\rm field} + \sum_{\rm ch} \Delta E_{\rm ch}.
+\tag{4a.19}$$
+
+Exactly one channel has a bath on the other side. $-\Delta E_{\rm eph}$ is what the
+carriers hand to the phonons; Auger and impact ionization redistribute energy *inside*
+the electron gas, so their $\Delta E$ must come out near zero while their $\Delta N$ does
+not — which is the check that they are doing what they claim. $72^2$, $E_F=0.6$ eV, ring
+on, dark run subtracted, per unit cell (the doping is 0.01512 carriers/cell):
+
+| $E_0$ [kV/cm] | 3 | 10 | 30 | 60 | 100 | 300 |
+|---|---|---|---|---|---|---|
+| $W_{\rm field}$ [meV] | 0.0017 | 0.0203 | 0.1682 | 0.6335 | 1.5119 | 8.5315 |
+| to the lattice, $-\Delta E_{\rm eph}$ [meV] | 0.0014 | 0.0173 | 0.0885 | 0.2466 | 0.6423 | 5.2112 |
+| … as % of $W$ | 82 | 85 | 53 | 39 | 43 | 61 |
+| $E_{\rm elec}$ left [meV] | 0.0003 | 0.0030 | 0.0797 | 0.3870 | 0.8694 | 3.3220 |
+| $\Delta N_{\rm eph}$ /cell | 5.9e−11 | 4.8e−10 | 1.2e−08 | 2.4e−07 | 9.5e−07 | 4.0e−06 |
+| $\Delta N_{\rm rana}$ /cell | −1.3e−08 | −1.5e−07 | −1.3e−06 | −6.1e−06 | −5.1e−05 | −2.3e−03 |
+| $\Delta E_{\rm rana}$ [meV] | −4e−09 | −5e−08 | −1e−06 | −2e−07 | −2e−04 | 1.6e−03 |
+
+**e-ph is an energy sink, not a population source.** It carries 39–61 % of the absorbed
+work to the lattice inside the 400 fs window while making almost no pairs: $\Delta
+N_{\rm eph}$ tops out at $4\times10^{-6}$ per cell at 300 kV/cm, $0.03\,\%$ of the doped
+carriers. **Rana is the mirror image** — $\Delta N_{\rm rana} = -2.3\times10^{-3}$ per
+cell, $15\,\%$ of the carriers, with $\Delta E_{\rm rana}$ four orders of magnitude below
+$W$. That is exactly what Auger should look like: it moves carriers, not energy, and the
+near-zero $\Delta E$ column is how one checks it. (The 3 and 10 kV/cm percentages are
+ratios of numbers at the $10^{-3}$ meV level and mean nothing.)
+
+**The zero-field pathology is e-ph, and only e-ph.** In the `dark_diss` control, with no
+drive at all,
+
+| channel | $\Delta N$ /cell | $\Delta E$ [meV/cell] |
+|---|---|---|
+| e-ph | $+2.8\times10^{-10}$ | $\mathbf{+2.7489}$ |
+| Rana | $-4.6\times10^{-10}$ | $+0.0000$ |
+| impact ionization, ring Auger | 0 | 0 |
+
+The e-ph channel puts 2.75 meV per cell into the electron gas with the field switched
+off — **182 meV per doped carrier**, of which 136 meV is already in by the time the pulse
+peaks near 150 fs. The whole work done by the 100 kV/cm pulse is 1.51 meV/cell, so the
+spurious pump is $1.8\times$ the entire signal at that field. This is the energetic face
+of the dark current of §4a.5.5, and it names the channel: Rana at zero field contributes
+$+0.0000$ meV and $-4.6\times10^{-10}$ carriers, i.e. nothing.
+
+Two consequences follow, and they point in opposite directions.
+
+*A clean dissipative sheet is available now.* Switching the phonons off and keeping the
+Rana Auger channel gives a ring whose zero-field ledger is empty at this mesh. That is
+**not** what §4a.5.5 found for the `nfs == 0` gain bug, where Auger alone still grew the
+current — but that is a different failure, on a mesh that cannot represent the doping at
+all, and the two should not be conflated. Where the doping is resolved, the phonon rates
+are the thing that leaks.
+
+*It is the leading suspect for the missing weight of §4a.5.7.* The pulse arrives at a
+sheet that has already taken 136 meV per carrier from a bath it is supposed to be in
+equilibrium with, so $D_{\rm eq}$ evaluated for $f_{\rm FD}(E_F, 300\,{\rm K})$ is the
+wrong reference and the measured $D/D_{\rm eq}=0.43$ is in part a statement about that
+reference. It cannot be the whole explanation: a *thermal* distribution carrying that
+much excess energy would still hold $\ge 0.87\,D_{\rm eq}$ (§4a.0's heating table), so
+what the pump makes is non-thermal. Either way the repair belongs in the detailed balance
+of the e-ph rates, not in the sheet, the mesh, or the drift law.
+
+Reproduce the ledger with `channel_budget.py` (x14 README §7.15); always pass `--dark`,
+because without it every column carries the offset above.
+
 ## 5. Sheet electrodynamics
 
 ### 5.1 Boundary condition
