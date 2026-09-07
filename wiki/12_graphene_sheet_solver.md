@@ -1318,13 +1318,46 @@ step — keeps one exponential rather than three.
 
 **Scope.** Gated on the material (`mp%auger_2d_rana`): on for the gapless 2D Dirac
 materials, off for Si, GaAs and CdS, which take the historical branch verbatim and stay
-bit-identical to the validations published with them. The violation is not
-graphene-specific, but their optical modes give $\sigma/\hbar\omega \approx 1$ rather
-than $\approx 20$, so for them it is a small correction and not a runaway; whether to
-enable it there needs its own runs.
+bit-identical to the validations published with them.
+
+*The runs this section used to ask for have now been done, and they do not support
+leaving it there.* An earlier revision reasoned from the optical modes alone
+($\sigma/\hbar\omega \approx 1$) and called the 3D case a small correction. Two things
+were missed. Silicon also gets an **appended acoustic mode** — the same structure that
+makes graphene run away — at $\hbar\omega_{\rm ac} = 13.25$ meV on a $9^3$ mesh,
+carrying **23.4 %** of the channel weight; and the production search width for the 3D
+materials is the grid-matched default $\sigma = 0.2$ eV, not the 0.1 eV of the sheet
+runs. Together those give $\sigma/\hbar\omega = 3.2 \dots 20$ across the silicon table
+— the graphene condition, if anything more strongly.
+
+Measured the way the ring is actually fed (the dressed-reference measure clamps the
+filled valence sea to zero, so the sources are conduction electrons only) on a gapped
+spectrum held at an exact $f_{\rm FD}(300$ K$)$, in meV per step:
+
+| | historical split | realized transfer |
+|---|---|---|
+| Si, $\sigma = 0.2$ eV | **$+4.09\times10^{-2}$** | $+9.1\times10^{-7}$ |
+
+Both conserve trace to $10^{-21}$: CPTP is intact, it is the energy balance that is
+violated, and the sign is heating — a carrier gas already at the bath temperature is
+warmed by it. The silicon mode energies and weights above are the ones the run's own
+banner prints; repeating the probe with a GaAs-like table (Fröhlich LO at 36 meV plus
+the five intervalley modes near 29 meV, weights assumed) gives $+1.39\times10^{-8}$ Ha
+against $+1.2\times10^{-15}$, the same verdict — it is the mode *energies* against
+$\sigma$ that decide this, not the detail of the weights. So the violation is **not** a
+small correction for Si and GaAs; enabling the gate there is a physics decision about
+re-validating those materials, not a question of whether the correction matters.
+
+One thing the 3D case does *not* show is a zero-field pump in a dark run. `dressed_ref`
+makes the ring read the excess-carrier measure, which is identically zero for every band
+— valence included — at $A = 0$, so an undoped gapped material is inert in the dark by
+construction. A dark control is therefore blind to this bug for Si, GaAs and CdS; it was
+only a discriminator for graphene because graphene is *doped*, and so has carriers at
+zero field. The criterion below is what detects it instead.
 
 `tests/test_eph_detailed_balance.f90` holds a Dirac spectrum at an exact
-$f_{\rm FD}(T_{\rm bath})$ and requires the channel to leave it alone.
+$f_{\rm FD}(T_{\rm bath})$ and requires the channel to leave it alone; checks 5–6 repeat
+the criterion on the gapped 3D spectrum with the silicon table at $\sigma = 0.2$ eV.
 
 **The rescan.** Repeating the whole dissipative monolayer scan with the corrected channel —
 same $72^2$, same $E_F$, same pulse and time grid as §4a.5.5, so the two are comparable

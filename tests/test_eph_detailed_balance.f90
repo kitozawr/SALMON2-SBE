@@ -25,6 +25,17 @@
 !    3) trace is still conserved exactly (the fix must not cost CPTP),
 !    4) db_realized = .false. still heats, i.e. the gate really does select the old
 !       behaviour for the gapped materials that were validated with it.
+!
+!  Checks 5-6 repeat the criterion for the GAPPED 3D materials, which today still take
+!  the historical path (eph_db_realized = mp%auger_2d_rana, set only for the 2D Dirac
+!  registry). The spectrum is a 1.07 eV gap with the silicon phonon table, held at the
+!  production search width sigma = 0.2 eV, and the carriers are conduction electrons at
+!  an exact FD(300 K) -- which is what the ring is actually handed, since the
+!  dressed-reference measure clamps the filled valence sea to zero. The point is not to
+!  bless the current gate: it is that the realized-transfer split IS stationary on a
+!  gapped 3D spectrum too, so widening the gate is a physics decision and not a
+!  correctness risk. sigma/hw_p runs 3.2 to 20 for silicon, i.e. the condition that
+!  broke graphene holds here more strongly, not less.
 !  Standalone gfortran (uses sbe_superres_ssbe.f90).
 !
 program test_eph_detailed_balance
@@ -38,6 +49,16 @@ program test_eph_detailed_balance
     real(8) :: mu, kT, occ_max, e, sig, tau, nu_sat, eps0, nun
     real(8) :: dE_fix_100, dE_fix_020, dE_old_100, tr
     integer :: ik, a, nfail
+    ! --- the gapped 3D case (checks 5-6) ---
+    integer, parameter :: nk3 = 40, nba3 = 4, nph3 = 7
+    real(8), parameter :: SI_HW_MEV(nph3) = &
+        (/ 10.0d0, 19.0d0, 63.0d0, 19.0d0, 51.0d0, 57.0d0, 13.25d0 /)
+    real(8), parameter :: SI_W(nph3) = &
+        (/ 0.007d0, 0.091d0, 0.441d0, 0.010d0, 0.186d0, 0.030d0, 0.234d0 /)
+    real(8) :: ev3(nba3, nk3), f3(nba3, nk3), dp3(nba3, nk3)
+    real(8) :: hw3(nph3), wr3(nph3), nb3(nph3)
+    real(8) :: egap3, ecbm3, evbm3, mu3, dE_old_3d, dE_fix_3d, sig3
+    integer :: ip
 
     nfail = 0
     occ_max = 2d0
@@ -100,6 +121,56 @@ program test_eph_detailed_balance
     ! (4) the gate really selects the old behaviour
     if (.not. (dE_old_100 > 1d-2)) then
         write(*, '(a)') '  FAIL: db_realized=.false. no longer reproduces the historical heating'
+        nfail = nfail + 1
+    end if
+
+    ! ---------------- gapped 3D: the same criterion, silicon's numbers -------------
+    egap3 = 1.0677d0 / HA_EV                 ! EPM Si indirect gap
+    evbm3 = 0d0
+    ecbm3 = egap3
+    mu3   = ecbm3 + 0.05d0 / HA_EV           ! a modest conduction population
+    do ip = 1, nph3
+        hw3(ip) = SI_HW_MEV(ip) * 1d-3 / HA_EV
+        wr3(ip) = SI_W(ip)
+        nb3(ip) = bose_factor(hw3(ip), kT)
+    end do
+    do ik = 1, nk3
+        e = (dble(ik) - 0.5d0) / dble(nk3) * (0.6d0 / HA_EV)
+        ev3(1, ik) = evbm3 - e - 0.10d0 / HA_EV
+        ev3(2, ik) = evbm3 - e
+        ev3(3, ik) = ecbm3 + e
+        ev3(4, ik) = ecbm3 + e + 0.10d0 / HA_EV
+    end do
+    f3 = 0d0                                 ! the valence excess measure is zero
+    do ik = 1, nk3
+        do a = 3, nba3
+            f3(a, ik) = occ_max / (1d0 + exp(min(max((ev3(a,ik) - mu3)/kT, -60d0), 60d0)))
+        end do
+    end do
+
+    sig3 = 0.200d0 / HA_EV                   ! the production search width for Si/GaAs
+    call eph_interk_dpop(nk3, nba3, ev3, f3, occ_max, 0d0, ecbm3, evbm3, &
+                         nph3, hw3, wr3, nb3, kT, .false., nu_sat, eps0, nun, sig3, tau, dp3)
+    dE_old_3d = sum(ev3 * dp3) * HA_EV * 1d3
+    call chk("trace conserved, gapped 3D, historical split", abs(sum(dp3)), 0d0, 1d-14)
+
+    call eph_interk_dpop(nk3, nba3, ev3, f3, occ_max, 0d0, ecbm3, evbm3, &
+                         nph3, hw3, wr3, nb3, kT, .true., nu_sat, eps0, nun, sig3, tau, dp3)
+    dE_fix_3d = sum(ev3 * dp3) * HA_EV * 1d3
+    call chk("trace conserved, gapped 3D, realized transfer", abs(sum(dp3)), 0d0, 1d-14)
+
+    write(*, '(a)') '  a gapped 3D carrier gas (Si table, sigma = 0.2 eV), already at the bath:'
+    write(*, '(a,es12.3,a)') '    sum E dpop, historical split                  : ', dE_old_3d, ' meV/step'
+    write(*, '(a,es12.3,a)') '    sum E dpop, realized transfer                 : ', dE_fix_3d, ' meV/step'
+
+    ! (5) the realized-transfer split is stationary on a gapped 3D spectrum too
+    if (.not. (abs(dE_fix_3d) < 1d-3 * abs(dE_old_3d))) then
+        write(*, '(a)') '  FAIL: realized-transfer balance is not << the historical leak (gapped 3D)'
+        nfail = nfail + 1
+    end if
+    ! (6) and the historical path, which Si/GaAs still take, really does heat
+    if (.not. (dE_old_3d > 0d0)) then
+        write(*, '(a)') '  FAIL: historical split no longer heats a thermal gapped 3D gas'
         nfail = nfail + 1
     end if
 
