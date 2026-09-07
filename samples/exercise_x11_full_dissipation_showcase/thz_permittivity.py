@@ -6,14 +6,20 @@ Reads a *_sbe_rt.data / *_sbe_nex_nonad.data pair and reports the response over
 disagree by three orders of magnitude, and the disagreement is the point.
 
   MEASURED   sigma(w) = J(w)/E(w) straight off the record, zero-padded onto a fine grid.
-             In the velocity gauge only the TOTAL current is gauge invariant, and on a
-             coarse mesh the intraband part of a FILLED band does not cancel: the sum of
-             the group velocity over a full band vanishes only when the BZ sum is exact.
-             What is left is reversible -- it tracks A(t), not E(t) -- and it can be
-             orders of magnitude larger than the free-carrier current. Anything read off
-             it describes the residue, not the material. `yn_sbe_vg_sumrule = 'y'`
-             removes it by construction (wiki/12 SS6a) by subtracting the adiabatic
-             ground-state current of the SAME truncated H_k(A) on the SAME mesh.
+             A uniform A is a pure gauge, so a COMPLETE basis gives zero current from a
+             filled sea at every A. An nb-band basis does not: it leaves eta N_e A/V,
+             with eta the oscillator strength the truncation fails to capture (the
+             startup banner prints it). This is a BASIS effect, not a mesh effect -- a
+             denser k-mesh does not touch it. What is left is reversible, tracking A(t)
+             rather than E(t), and at THz it is ruinous: the residue scales as A = E/w
+             while the polarisation current it has to be compared with scales as w E, so
+             the contamination grows as 1/w^2. eta of a per cent is invisible in the
+             optical and fatal at 2 THz. `yn_sbe_vg_sumrule = 'y'` removes it by
+             construction (wiki/12 SS6a), subtracting the adiabatic ground-state current
+             of the SAME truncated H_k(A) -- parameter-free, exact at every A, one ZHEEV
+             per k per current evaluation, and material-agnostic (it reads only eigen,
+             p_tm and the reference occupation, so Si and GaAs are on the same footing
+             as graphene -- cleaner, in fact, since their sea is undoped).
 
   MODELLED   Drude from the REAL carrier density in *_sbe_nex_nonad.data (the
              dressed-reference column, which is what the ring dissipators see), with m*
