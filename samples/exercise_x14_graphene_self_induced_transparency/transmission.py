@@ -199,10 +199,32 @@ def _header_columns(path, key):
     raise RuntimeError(f'no column header with "{key}" in {path}')
 
 
+def _dedup_time(d, path):
+    """Drop the seam a checkpoint-restart leaves behind.
+
+    `yn_sbe_checkpoint_restart` appends, and the resume begins at the last checkpoint,
+    which is a few steps BEFORE the record got to when the run was killed. The file then
+    contains a short block of repeated times, and every integral downstream -- fluence,
+    energy ledger, FFT -- assumes a uniform monotone grid. Keep the LAST occurrence of
+    each timestamp (the resumed values supersede the pre-kill ones) and sort. A record
+    that was never resumed is returned untouched.
+    """
+    t = d[:, 0]
+    if np.all(np.diff(t) > 0):
+        return d
+    order = np.argsort(t, kind='stable')
+    d = d[order]
+    keep = np.append(np.diff(d[:, 0]) > 0, True)          # last of each repeated time
+    n_dropped = len(d) - int(keep.sum())
+    print(f'# {os.path.basename(os.path.dirname(path))}: checkpoint-restart seam, '
+          f'{n_dropped} duplicated row(s) dropped')
+    return d[keep]
+
+
 def read_rt(path):
     """*_sbe_rt.data -> dict of columns converted to ATOMIC UNITS."""
     cols = _header_columns(path, 'Time')
-    d = np.loadtxt(path, comments='#')
+    d = _dedup_time(np.loadtxt(path, comments='#'), path)
     out = {}
     for name, (i, unit) in cols.items():
         v = d[:, i].copy()
