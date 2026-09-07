@@ -1218,6 +1218,29 @@ there too. The suspect is the Rana Auger channel: dN_rana < 0 at every field, i.
 with. Those two points are drawn hollow in the figure and are not fitted. The fields from
 30 kV/cm up are unaffected, which is why the drift-law test above stands.
 
+**The Auger suspicion is wrong.** Repeating 3 and 10 kV/cm with `yn_sbe_auger = 'n'` —
+everything else identical — reproduces the Auger-on numbers to five figures: T = 0.930077
+against 0.930049, A = −0.538351 against −0.538301, A_E = −0.905860 against −0.905792 at
+3 kV/cm, and the same at 10. The Rana channel is not the source of the low-field gain.
+
+What that leaves: e-ph and the self-consistent sheet field. The dark control is clean
+(|J|max = 5.3×10⁻¹⁹), so whatever it is needs the field to seed it. The ledger at 3 kV/cm
+says the carriers hand 0.015 meV/cell to the lattice and 0.008 meV/cell to the field —
+the initial state is relaxing and part of the release goes out through radiation reaction.
+Why that exceeds what the pulse deposited is not understood. The next cheap discriminator
+is `yn_sbe_eph = 'n'` at 3 kV/cm, leaving only the sheet.
+
+**The law extrapolated to the sample's own doping.** `drift_fit_plot.py --predict-ef 0.2`
+draws T(E₀) for another doping with nothing fitted: the equilibrium Drude weight
+D_eq(E_F, T) fixes the linear sheet response, G(u)/u with that doping's own k_F gives the
+field dependence, and the sheet boundary condition turns the pair into a transmission.
+At E_F = 0.2 eV the saturation field moves to **27 kV/cm** from 81 — linearly in E_F — so
+the brightening starts three times earlier and goes further: the law gives T ≈ 0.99 at
+300 kV/cm against 0.86 at 0.6 eV, because the sheet is loaded half as heavily (|z| = 0.32
+against 0.96) while saturating at the same u. `--predict-dscale 0.69 1.0` shades the band
+between the equilibrium weight and the 0.69 D_eq the 0.6 eV runs actually carry, which is
+the honest width of what is not yet known; the shape inside the band is the same.
+
 Two tooling repairs came out of running this on a box that restarts: `read_rt` now drops
 the duplicated rows a checkpoint resume leaves at the seam (19 and 24 rows in two of these
 fields) and `read_energy_delta` accepts an energy file with no header, which is what a run
