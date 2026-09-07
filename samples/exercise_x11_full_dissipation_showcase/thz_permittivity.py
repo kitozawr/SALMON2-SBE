@@ -43,8 +43,8 @@ E_SI, EPS0, C_SI, ME = 1.602176634e-19, 8.8541878128e-12, 2.99792458e8, 9.109383
 J_CONV = 1.602176634e16          # Jm [1/(fs Angstrom^2)] -> A/m^2
 
 # conductivity effective mass and the THz background permittivity
-MATERIAL = {'Si':   dict(mstar=0.26, eps_inf=11.68),
-            'GaAs': dict(mstar=0.067, eps_inf=12.9)}
+MATERIAL = {'Si':   dict(mstar=0.26, eps_inf=11.68, cell_A3=5.431**3 / 4),
+            'GaAs': dict(mstar=0.067, eps_inf=12.9, cell_A3=5.653**3 / 4)}
 
 
 def load(run):
@@ -84,6 +84,37 @@ def drude_eps(f_thz, n_m3, mstar, eps_inf, tau_fs):
     return eps_inf - wp2 / (w**2 + 1j * w / (tau_fs * 1e-15)), np.sqrt(wp2) / (2 * np.pi) / 1e12
 
 
+def absorbed_energy(run, cell_A3):
+    """Absorbed energy per cell [meV], integrated to the last near-zero of A(t).
+
+    int J.E dt is the one quantity a record dominated by the reversible residue can
+    still deliver -- but only if the window is chosen right. The residue J ~ -cA does
+    work c[A^2/2] taken between the ends, so it cancels EXACTLY when A starts and
+    finishes at zero, and not at all otherwise. These records stop mid-pulse with A at
+    20-40 % of its peak, where the residue is 16-148 % of the raw integral; cutting at
+    the last sample where |A| is smallest drops that to 0.2-6 %. Projecting the residue
+    out instead over-subtracts (it takes some of the real dissipative response with it)
+    and returns negative absorption, so the window, not the projection, is the repair.
+    """
+    a = np.loadtxt(glob.glob(os.path.join(run, '*_sbe_rt.data'))[0])
+    t = a[:, 0] * 1e-15
+    ax = int(np.argmax([np.abs(a[:, 4 + i]).max() for i in range(3)]))
+    A = a[:, 7 + ax]
+    Et = a[:, 10 + ax] * 1e10
+    Ei = a[:, 4 + ax] * 1e10
+    J = -a[:, 13 + ax] * J_CONV
+    lo = int(0.85 * len(A))
+    i = lo + int(np.argmin(np.abs(A[lo:])))
+    conv = cell_A3 * 1e-30 / E_SI * 1e3                    # J -> meV per cell
+    W = np.trapezoid(J[:i + 1] * Et[:i + 1], t[:i + 1]) * conv
+    c = np.dot(J, A) / np.dot(A, A)
+    residue = abs(c * (A[i]**2 - A[0]**2) / 2 * conv)
+    F = EPS0 * C_SI * np.trapezoid(Ei[:i + 1]**2, t[:i + 1]) * 1e3 / 1e4   # mJ/cm^2
+    alpha = (W * 1e-3 * E_SI / (cell_A3 * 1e-24)) / (F * 1e-3)             # 1/cm
+    return dict(W_meV=W, residue_frac=residue / max(abs(W), 1e-30), t_cut_fs=t[i] * 1e15,
+                F_mJcm2=F, alpha_cm=alpha, A_end_rel=abs(A[i]) / np.abs(A).max())
+
+
 def optics(eps, f_thz):
     nt = np.sqrt(np.asarray(eps, dtype=complex))
     nt = np.where(nt.imag < 0, np.conj(nt), nt)
@@ -114,7 +145,8 @@ def main(argv=None):
         d = load(run)
         n_dref, n_proj = real_density(run)
         f, sig, eps_meas = measured_eps(d, p['eps_inf'])
-        rows.append(dict(name=name, mat=mat, d=d, f=f, sig=sig, eps=eps_meas,
+        ab = absorbed_energy(run, p['cell_A3'])
+        rows.append(dict(name=name, mat=mat, d=d, f=f, sig=sig, eps=eps_meas, ab=ab,
                          n_dref=n_dref, n_proj=n_proj,
                          rA=np.corrcoef(d['J'], d['A'])[0, 1],
                          rE=np.corrcoef(d['J'], d['E'])[0, 1],
@@ -137,6 +169,23 @@ def main(argv=None):
     print('#   compare it with eps_inf = 11.7 (Si) / 12.9 (GaAs).')
     print(f'# Drude columns: tau = {args.tau_fs:g} fs, m* and eps_inf from the literature,')
     print('#   n from nex_dref. alpha and R are at 1 THz, normal incidence, semi-infinite.')
+    print()
+    print('# ABSORBED ENERGY -- the one thing a residue-dominated record still gives, once the')
+    print('# window ends where A does (see absorbed_energy).')
+    print(f'{"run":20} {"E_pk[kV/cm]":>11} {"t_cut[fs]":>10} {"residue":>8} {"W[meV/cell]":>12} '
+          f'{"F[mJ/cm2]":>10} {"alpha_eff[1/cm]":>16}')
+    for r in rows:
+        a = r['ab']
+        print(f'{r["name"]:20} {r["Epk"]:11.0f} {a["t_cut_fs"]:10.1f} {a["residue_frac"]:7.1%} '
+              f'{a["W_meV"]:12.4f} {a["F_mJcm2"]:10.4f} {a["alpha_cm"]:16.3e}')
+    for mat in ('Si', 'GaAs'):
+        rr = sorted([r for r in rows if r['mat'] == mat], key=lambda x: x['Epk'])
+        for i in range(len(rr) - 1):
+            e0, e1 = rr[i]['Epk'], rr[i + 1]['Epk']
+            w0, w1 = rr[i]['ab']['W_meV'], rr[i + 1]['ab']['W_meV']
+            a0, a1 = rr[i]['ab']['alpha_cm'], rr[i + 1]['ab']['alpha_cm']
+            print(f'#   {mat}: {e0:.0f} -> {e1:.0f} kV/cm   W ~ E^{np.log(w1 / w0) / np.log(e1 / e0):.2f} '
+                  f'(linear absorption = E^2),   alpha x{a1 / a0:.2f}')
 
     try:
         import matplotlib
