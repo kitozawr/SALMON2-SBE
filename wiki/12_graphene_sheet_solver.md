@@ -1324,7 +1324,45 @@ than $\approx 20$, so for them it is a small correction and not a runaway; wheth
 enable it there needs its own runs.
 
 `tests/test_eph_detailed_balance.f90` holds a Dirac spectrum at an exact
-$f_{\rm FD}(T_{\rm bath})$ and requires the channel to leave it alone. The existing CPTP
+$f_{\rm FD}(T_{\rm bath})$ and requires the channel to leave it alone.
+
+**The rescan.** Repeating the whole dissipative monolayer scan with the corrected channel —
+same $72^2$, same $E_F$, same pulse and time grid as §4a.5.5, so the two are comparable
+point by point — settles what the correction was worth.
+
+The zero-field pump is gone rather than reduced: the ring current falls from
+$|J|_{\max} = 2.4\times10^{-8}$ to $5.3\times10^{-19}$ and the energy it injects from
+$+2.749$ to $+7\times10^{-5}$ meV/cell, which is $800\times$ below the 0.055 meV that
+heating this sheet from 0 to 300 K costs. The dark fraction is $0.0\,\%$ at every field
+against $35.8$ and $14.0\,\%$ at 3 and 10 kV/cm, and $\Delta E_{\rm eph}$ is now negative
+everywhere — the carriers cool into the lattice instead of being warmed by it.
+
+The drift law, anchored at 30 kV/cm as before:
+
+| $u$ | 0.371 | 0.742 | 1.237 | 3.711 |
+|---|---|---|---|---|
+| $D(u)/D(u_0)$ | 1.000 | 0.957 | 0.770 | 0.461 |
+| $G(u)/u$ | 1.000 | 0.941 | 0.750 | 0.273 |
+| residual, corrected | — | $+1.7\,\%$ | $+2.7\,\%$ | $+68.8\,\%$ |
+| residual, before | — | $-5.0\,\%$ | $+3.8\,\%$ | $+81.8\,\%$ |
+
+The worst on-cone deviation drops from $5.0$ to $2.7\,\%$, and the absolute weight recovers
+to $D/D_{\rm eq} = 0.69$ from $0.43$ — so more than half of the deficit §4a.5.7 could not
+explain was the pump destroying the weight. The sheet brightens $+26\,\%$ from its minimum
+(against $+14.9\,\%$), and the fluence absorption and the electron-energy ledger, which
+disagreed by a factor 5 on the worst pre-fix point, now agree to $0.1$–$7\,\%$.
+
+![one layer with the corrected ring against the drift law](figures/graphene_drift_fit_1layer.png)
+
+**A second fault is now visible underneath, and it is not this one.** At 3 and 10 kV/cm the
+runs pass the dark control and fail the energy ledger: $A = -0.538$ against $A_E = -0.906$
+at 3 kV/cm, $T + R = 1.54$, and with the drive exactly zero over the last 60 fs the current
+sits at its maximum and is still growing. The phonon bath is not the source — $\Delta
+E_{\rm eph}$ is negative there too. The suspect is the Rana Auger channel, whose
+$\Delta N$ is negative at every field: it is recombining, and a doped gapless sheet has no
+holes for its Drude carriers to recombine with. The fields from 30 kV/cm up are unaffected,
+which is why the drift-law test above stands; the two low points are drawn hollow and not
+fitted. The existing CPTP
 tests could not have caught this — trace was conserved, populations stayed in range,
 transfers went to energy-matched partners. A dissipator can be a perfectly valid CPTP map
 and still have the wrong fixed point, and only a stationarity test says which.

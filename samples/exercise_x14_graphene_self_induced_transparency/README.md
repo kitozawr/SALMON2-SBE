@@ -1169,7 +1169,60 @@ its own runs and is deliberately not decided here.
 
 `tests/test_eph_detailed_balance.f90` holds a Dirac spectrum at an exact FD(T_bath) and
 requires the channel to leave it alone, checks that the residual shrinks with σ, and
-checks that the gate still reproduces the historical path. The existing CPTP tests could
+checks that the gate still reproduces the historical path.
+
+**The rescan.** The whole dissipative monolayer scan was repeated with the corrected
+channel — same 72², same E_F = 0.6 eV, same pulse and time grid as §7.11, so the two are
+directly comparable.
+
+*The pump is gone, not reduced.* In the zero-field control the ring current fell from
+|J|max = 2.4×10⁻⁸ to **5.3×10⁻¹⁹** (eleven orders) and the energy it injected from
++2.74889 to **+0.00007 meV/cell** — 40 800× down, and 800× below the 0.055 meV it costs to
+heat this sheet from 0 to 300 K. The dark fraction is **0.0 % at every field**, against
+35.8 % and 14.0 % at 3 and 10 kV/cm before. The sign of the heat flow also flipped to the
+physical one: dE_eph is now negative at every field (−0.015, −0.061, −0.213 meV/cell at 3,
+10, 30 kV/cm) — the carriers cool into the lattice instead of being warmed by it.
+
+*The law holds better.* Anchored the same way, at 30 kV/cm:
+
+| u = A₀/k_F | 0.371 | 0.742 | 1.237 | 3.711 |
+|---|---|---|---|---|
+| D(u)/D(u₀) | 1.000 | 0.957 | 0.770 | 0.461 |
+| G(u)/u | 1.000 | 0.941 | 0.750 | 0.273 |
+| residual, corrected | — | **+1.7 %** | **+2.7 %** | +68.8 % (off the cone) |
+| residual, before | — | −5.0 % | +3.8 % | +81.8 % |
+
+The worst on-cone deviation falls from 5.0 % to 2.7 %. And the absolute weight recovers:
+**D/D_eq = 0.69 against 0.43** before, so more than half of the missing Drude weight of
+§7.14 was the spurious pump destroying it. The remaining 31 % is still unexplained.
+
+*Transmission and the two absorption measures now agree.*
+
+| E₀ [kV/cm] | 30 | 60 | 100 | 300 |
+|---|---|---|---|---|
+| T | 0.679 | 0.717 | 0.750 | **0.856** |
+| A, fluence | 0.253 | 0.247 | 0.221 | 0.133 |
+| A_E, energy ledger | 0.236 | 0.243 | 0.219 | 0.132 |
+| disagreement | 7 % | 2 % | 1 % | **0.1 %** |
+
+The sheet brightens by +26 % from its minimum (against +14.9 % before), and the fluence and
+the electron-energy ledger — which disagreed by a factor 5 on the worst pre-fix point —
+now agree to between 0.1 and 7 %.
+
+**What the rescan did NOT fix, and it is a different fault.** At 3 and 10 kV/cm the runs
+now pass the dark control and fail the *energy ledger*: A = −0.538 against A_E = −0.906 at
+3 kV/cm, T + R = 1.54, and with the drive exactly zero over the last 60 fs the current sits
+at its maximum and is still growing. The phonon bath is not the source — dE_eph is negative
+there too. The suspect is the Rana Auger channel: dN_rana < 0 at every field, i.e. it is
+*recombining*, and a doped gapless sheet has no holes for its Drude carriers to recombine
+with. Those two points are drawn hollow in the figure and are not fitted. The fields from
+30 kV/cm up are unaffected, which is why the drift-law test above stands.
+
+Two tooling repairs came out of running this on a box that restarts: `read_rt` now drops
+the duplicated rows a checkpoint resume leaves at the seam (19 and 24 rows in two of these
+fields) and `read_energy_delta` accepts an energy file with no header, which is what a run
+whose FIRST launch was a resume produces — the accumulator is restored from the checkpoint,
+so the last row is still right and only the earlier rows are missing. The existing CPTP tests could
 not have caught this: trace was always conserved, populations always stayed in range,
 and transfers always went to energy-matched partners. A dissipator can be a perfectly
 valid CPTP map and still have the wrong fixed point.

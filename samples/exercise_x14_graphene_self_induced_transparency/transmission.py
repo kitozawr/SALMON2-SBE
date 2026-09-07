@@ -245,8 +245,22 @@ def read_rt(path):
 
 
 def read_energy_delta(path):
-    """Final Eall-Eall0 [Ha] from *_sbe_rt_energy.data (unit from the header)."""
-    cols = _header_columns(path, 'Time')
+    """Final Eall-Eall0 [Ha] from *_sbe_rt_energy.data (unit from the header).
+
+    A run whose FIRST launch was a checkpoint resume has no header in this file:
+    realtime_ssbe writes headers only when is_ckrst is false, so an energy file created
+    by the resume itself starts straight at the data. The layout is fixed by the writer
+    (1:Time[fs] 2:Eall-Eall0[eV]), and the accumulator is restored from the checkpoint,
+    so the LAST row is still the correct cumulative value -- only the earlier rows are
+    missing. Fall back to that layout rather than refusing the run, and say so.
+    """
+    try:
+        cols = _header_columns(path, 'Time')
+    except RuntimeError:
+        v = np.loadtxt(path, comments='#')[-1, 1]
+        print(f'# {os.path.basename(os.path.dirname(path))}: energy file has no header '
+              f'(created by a checkpoint resume); assuming the writer layout, Eall-Eall0 in eV')
+        return v / AU_EV
     d = np.loadtxt(path, comments='#')
     for name, (i, unit) in cols.items():
         if name.startswith('Eall-Eall0'):
