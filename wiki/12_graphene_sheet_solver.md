@@ -1036,10 +1036,15 @@ lattice, 100 fs ring-down, `sbe_sheet_nlayers` 1 and 2:
 | $T_1^2/T_2$ | (0.903) | **0.984** | **0.971** | **0.988** | 1.005 |
 | $\|A-A_E\|/A$, two layers | **0.81** | 0.07 | 0.02 | 0.01 | 0.00 |
 
-The 10 kV/cm column is **quarantined**, hence the brackets. Its fluence absorption and
-its electron-energy ledger disagree by a factor 5 ($A=0.144$ against $A_E=0.027$) where
-every other field agrees to $\le7\,\%$ — the low-field ring drift of §4a.5.5 again, and
-`transmission.py` flags it automatically.
+The 10 kV/cm column is **quarantined**, hence the brackets, and the figure omits it.
+Two independent diagnostics condemn it and agree with each other. Its fluence
+absorption and its electron-energy ledger disagree by a factor 5 ($A=0.144$ against
+$A_E=0.027$) where every other field agrees to $\le7\,\%$; and the two-layer `dark_diss`
+control puts the field-independent ring current at $12.6\,\%$ of its peak there, against
+$5.6$, $4.0$, $2.4$ and $1.3\,\%$ at 30, 60, 100 and 300 kV/cm — the only field over the
+$10\,\%$ line of §4a.5.5. Subtracting the dark run moves it by only $+0.006$ in $T$ and
+does not repair the ledger mismatch, exactly as the "not repairable above 10 %" rule
+says. On the four clean fields the dark correction is $\le0.004$.
 
 ![one against two layers with the phonon ring](figures/graphene_layers_ring.png)
 

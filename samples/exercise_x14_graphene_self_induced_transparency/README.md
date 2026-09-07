@@ -958,9 +958,14 @@ E_F = 0.6 eV, ring at 300 K, +100 fs tail, `sbe_sheet_nlayers` 1 and 2:
 | T₁²/T₂ | (0.903) | **0.984** | **0.971** | **0.988** | 1.005 |
 | \|A−A_E\|/A, 2 layers | **0.81** | 0.07 | 0.02 | 0.01 | 0.00 |
 
-The 10 kV/cm column is quarantined: its fluence absorption and electron-energy ledger
-disagree by 5× (A = 0.144 vs A_E = 0.027) where the others agree to ≤7 %. Same
-low-field ring drift as §7.11; `transmission.py` flags it automatically.
+The 10 kV/cm column is quarantined and the figure omits it. Two independent
+diagnostics condemn it and agree: the fluence absorption and the electron-energy ledger
+disagree by 5× (A = 0.144 vs A_E = 0.027, others ≤7 %), and the two-layer `dark_diss`
+control puts the field-independent ring current at 12.6 % of peak there against 5.6 /
+4.0 / 2.4 / 1.3 % at 30 / 60 / 100 / 300 — the only field past the 10 % line of §7.11.
+Subtracting the dark run moves T by +0.006 and does not repair the ledger mismatch,
+just as the "not repairable above 10 %" rule predicts. On the four clean fields the
+dark correction is ≤0.004.
 
 Coherent, the same doping gave T₁²/T₂ = 1.15 at every field; with the ring the
 trustworthy points give 0.97–0.99 — below unity at all of them. The effect is smaller
