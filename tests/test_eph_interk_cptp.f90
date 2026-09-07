@@ -19,12 +19,16 @@ program test_eph_interk_cptp
     integer :: nfail, a, ik
     real(8) :: eval(nba, nk), f(nba, nk), dpop(nba, nk)
     real(8) :: occ_max, a2half, ecbm, evbm, sigma, tau, total
-    real(8) :: hw(nph), wrel(nph), nb_bose(nph), nu_sat, nu_eps0
+    real(8) :: hw(nph), wrel(nph), nb_bose(nph), nu_sat, nu_eps0, kt_bath
     real(8), parameter :: TOL = 1d-12
 
     nfail = 0
     occ_max = 2d0; a2half = 0d0; sigma = 0.01d0; tau = 0.1d0
     hw(1) = 0.05d0; wrel(1) = 1d0; nb_bose(1) = 0.3d0
+    ! kt_bath consistent with nb_bose = 0.3 at hw = 0.05 Ha; the checks below run the
+    ! HISTORICAL split (db_realized = .false.), which ignores it -- the realized-transfer
+    ! branch has its own test, test_eph_detailed_balance.f90.
+    kt_bath = hw(1) / log(1d0 + 1d0 / nb_bose(1))
     nu_sat = 1d0; nu_eps0 = 0.1d0
 
     ! Band layout: a=1 valence (full), a=2 conduction. Conduction at k1 sits one
@@ -39,7 +43,7 @@ program test_eph_interk_cptp
     f(2, 1) = 0.5d0                                  ! one excited carrier at (cond, k1)
 
     call eph_interk_dpop(nk, nba, eval, f, occ_max, a2half, ecbm, evbm, &
-                         nph, hw, wrel, nb_bose, nu_sat, nu_eps0, nu_n, &
+                         nph, hw, wrel, nb_bose, kt_bath, .false., nu_sat, nu_eps0, nu_n, &
                          sigma, tau, dpop)
 
     ! (1) trace conserved
@@ -67,7 +71,8 @@ program test_eph_interk_cptp
         real(8) :: hw_big(nph), dz(nba, nk)
         hw_big(1) = 10d0                             ! no pair is within ~sigma of 10 Ha
         call eph_interk_dpop(nk, nba, eval, f, occ_max, a2half, ecbm, evbm, &
-                             nph, hw_big, wrel, nb_bose, nu_sat, nu_eps0, nu_n, &
+                             nph, hw_big, wrel, nb_bose, kt_bath, .false., &
+                             nu_sat, nu_eps0, nu_n, &
                              sigma, tau, dz)
         call chk("gamma=0 -> no-op (max|dpop|)", maxval(abs(dz)), 0d0, 1d-12)
     end block
@@ -77,7 +82,7 @@ program test_eph_interk_cptp
         real(8) :: f0(nba, nk), dz(nba, nk)
         f0 = 0d0
         call eph_interk_dpop(nk, nba, eval, f0, occ_max, a2half, ecbm, evbm, &
-                             nph, hw, wrel, nb_bose, nu_sat, nu_eps0, nu_n, &
+                             nph, hw, wrel, nb_bose, kt_bath, .false., nu_sat, nu_eps0, nu_n, &
                              sigma, tau, dz)
         call chk("empty -> no-op (max|dpop|)", maxval(abs(dz)), 0d0, 1d-12)
     end block

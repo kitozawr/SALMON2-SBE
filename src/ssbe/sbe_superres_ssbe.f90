@@ -33,7 +33,7 @@ module sbe_superres_ssbe
               frohlich_hi_factor, ii_rate_general, bgr_gap_shift_ev, &
               gaussian_shape, amp_damp_channel, &
               mev_to_ha, d_evcm_to_au, d_evang_to_au, rho_gcm3_to_au, &
-              golden_rule_prefactor, eph_thermal_split, &
+              golden_rule_prefactor, eph_thermal_split, eph_thermal_split_de, &
               eps_thomas_fermi, tf_kappa2_degenerate, debye_kappa2, &
               lindhard_F, eps_lindhard_static, plasmon_freq2, lopc_branches, &
               eps_cdrb, interk_vq, build_vq_table, build_acscreen_table, t_ring_opts, &
@@ -679,6 +679,32 @@ contains
     !   fe = (N_B+1)/(2 N_B+1),  fa = N_B/(2 N_B+1).
     ! fe+fa = 1 (so the per-mode total is the mode weight) and fe/fa = (N_B+1)/N_B
     ! (detailed balance). At N_B=0: fe=1, fa=0 (spontaneous emission only).
+    ! Detailed balance on the ENERGY ACTUALLY EXCHANGED, not on the nominal hw_p.
+    !
+    ! The energy matching is Gaussian-broadened with width sigma (finite mesh, finite
+    ! lifetime), so a source is connected to partners at |dE| anywhere within a few
+    ! sigma of hw_p. Weighting all of them by N_B(hw_p) makes the channel enforce a
+    ! Boltzmann factor exp(hw_p/kT) on a transition that actually moves delta, and the
+    ! stationary state is then NOT the bath's Fermi-Dirac: for delta >> hw_p the upward
+    ! rate is too large by exp((delta-hw_p)/kT), and the distribution heats until its
+    ! temperature is set by sigma instead of by kT. With hw_ac = 5.4 meV and
+    ! sigma = 0.1 eV this ran a doped graphene sheet to T_e ~ 2300 K with no field at
+    ! all (x14 README SS7.16).
+    !
+    ! Evaluating N_B at delta makes the forward/backward ratio exp(delta/kT) for every
+    ! pair the broadening admits, so FD(T_bath) is stationary whatever sigma is. It
+    ! reduces to the nominal split when delta = hw_p, and to the symmetric 1/2 : 1/2 of
+    ! a degenerate pair as delta -> 0.
+    pure subroutine eph_thermal_split_de(delta, kT, fe, fa)
+        real(8), intent(in)  :: delta, kT
+        real(8), intent(out) :: fe, fa
+        real(8) :: Nb, denom
+        Nb = min(bose_factor(abs(delta), kT), 1d12)
+        denom = 2d0 * Nb + 1d0
+        fe = (Nb + 1d0) / denom
+        fa = Nb / denom
+    end subroutine eph_thermal_split_de
+
     pure subroutine eph_thermal_split(Nb, fe, fa)
         real(8), intent(in)  :: Nb
         real(8), intent(out) :: fe, fa
@@ -1621,13 +1647,28 @@ contains
     ! the intra-k channel when the ring is on. O(nk^2 nba^2 nph) all-pairs (same
     ! order as the Coulomb all-pairs sum it rides alongside).
     subroutine eph_interk_dpop(nk, nba, eval, f, occ_max, a2half, ecbm, evbm, &
-                               nph, hw, wrel, nb_bose, nu_sat, nu_eps0, nu_n, &
+                               nph, hw, wrel, nb_bose, kt_bath, db_realized, &
+                               nu_sat, nu_eps0, nu_n, &
                                sigma, tau, dpop, gout, kidx, kn, pol_tab, pol_norm, ip_polar, &
                                ac_tab, ip_ac, ib_scale, e_src_lo, e_src_hi)
         implicit none
         integer, intent(in)  :: nk, nba, nph
         real(8), intent(in)  :: eval(nba, nk), f(nba, nk), occ_max, a2half
         real(8), intent(in)  :: ecbm, evbm, hw(nph), wrel(nph), nb_bose(nph)
+        ! bath temperature [Ha]: the detailed-balance factor is evaluated at the
+        ! REALIZED transfer, so it cannot be folded into nb_bose(hw_p) beforehand.
+        ! nb_bose is still used for the mode banner and for the sigma -> 0 limit.
+        real(8), intent(in)  :: kt_bath
+        ! .true.  -- weight each transition by the detailed-balance factor of the
+        !            energy it ACTUALLY transfers (eph_thermal_split_de) and use a
+        !            pair-symmetric nu, so FD(kt_bath) is stationary for any sigma.
+        ! .false. -- the historical behaviour: one split per MODE, from N_B(hw_p),
+        !            and nu taken from the source alone. Correct only while
+        !            sigma << hw_p; kept as the default so the gapped materials
+        !            (Si, CdS, GaAs), whose optical modes satisfy that, are
+        !            bit-identical. Set .true. for the gapless 2D materials, where
+        !            the acoustic mode is 5 meV against a 0.1 eV search width.
+        logical, intent(in)  :: db_realized
         real(8), intent(in)  :: nu_sat, nu_eps0, nu_n, sigma, tau   ! nu_n = saturation exponent
         real(8), intent(out) :: dpop(nba, nk)
         real(8), intent(out), optional :: gout(nba, nk)  ! total out-rate Gamma_out per source (coherence damping)
@@ -1660,7 +1701,8 @@ contains
         real(8), intent(in), optional :: e_src_lo, e_src_hi
         logical :: do_mask
         integer :: ik, jq, a, b, ip, ipol, ipac
-        real(8) :: eps_kin, nu_a, fe, fa, dE, shp, th, blk, gam, gamtot, out_tot
+        real(8) :: eps_kin, nu_a, nu_b, fe, fa, dE, shp, th, blk, gam, gamtot, out_tot
+        real(8) :: delta, eps_kin_b
         real(8) :: gpart(nba, nk), emid, ibs
         logical :: src_cb
         real(8), parameter :: occ_eps = 1d-12
@@ -1687,8 +1729,8 @@ contains
         ! Each (a, ik) source is independent: partial rates target shared sinks
         ! dpop(b, jq), hence the array reduction; gout(:, ik) is owner-written.
         !$omp parallel do default(shared) schedule(dynamic) &
-        !$omp   private(ik, a, ip, jq, b, eps_kin, nu_a, fe, fa, dE, shp, th, blk, &
-        !$omp           gam, gamtot, out_tot, gpart, src_cb) &
+        !$omp   private(ik, a, ip, jq, b, eps_kin, eps_kin_b, nu_a, nu_b, fe, fa, dE, &
+        !$omp           delta, shp, th, blk, gam, gamtot, out_tot, gpart, src_cb) &
         !$omp   reduction(+:dpop)
         do ik = 1, nk
             do a = 1, nba
@@ -1713,20 +1755,36 @@ contains
                 gpart = 0d0
                 gamtot = 0d0
                 do ip = 1, nph
-                    call eph_thermal_split(nb_bose(ip), fe, fa)
+                    if (.not. db_realized) call eph_thermal_split(nb_bose(ip), fe, fa)
                     do jq = 1, nk
                         do b = 1, nba
                             if (jq == ik .and. b == a) cycle
-                            if (eval(b, jq) < eval(a, ik)) then        ! emission (down)
-                                dE = abs((eval(a, ik) - eval(b, jq)) - hw(ip)); th = fe
-                            else                                       ! absorption (up)
-                                dE = abs((eval(b, jq) - eval(a, ik)) - hw(ip)); th = fa
+                            delta = abs(eval(b, jq) - eval(a, ik))
+                            dE = abs(delta - hw(ip))
+                            if (db_realized) then
+                                shp = gaussian_shape(dE, sigma)
+                                if (shp <= 0d0) cycle
+                                ! detailed balance on the realized transfer: this is
+                                ! what makes FD(kt_bath) stationary for every pair the
+                                ! broadening admits, whatever sigma is.
+                                call eph_thermal_split_de(delta, kt_bath, fe, fa)
+                                th = merge(fe, fa, eval(b, jq) < eval(a, ik))
+                                if (th <= 0d0) cycle
+                                ! ... and a pair-symmetric nu, so the two directions of
+                                ! one pair share a prefactor (nu(eps) alone differs by a
+                                ! factor 2 across 0.4-0.8 eV at eps0 = 0.8 eV).
+                                eps_kin_b = max(eval(b, jq) - ecbm, evbm - eval(b, jq), 0d0)
+                                nu_b = nu_saturation(eps_kin_b, nu_sat, nu_eps0, nu_n)
+                                nu_b = sqrt(nu_a * nu_b)
+                            else
+                                th = merge(fe, fa, eval(b, jq) < eval(a, ik))
+                                if (th <= 0d0) cycle
+                                shp = gaussian_shape(dE, sigma)
+                                if (shp <= 0d0) cycle
+                                nu_b = nu_a
                             end if
-                            if (th <= 0d0) cycle
-                            shp = gaussian_shape(dE, sigma)
-                            if (shp <= 0d0) cycle
                             blk = min(max(1d0 - f(b, jq) / occ_max, 0d0), 1d0)
-                            gam = nu_a * wrel(ip) * th * shp * blk
+                            gam = nu_b * wrel(ip) * th * shp * blk
                             ! gap-straddling pair: the phonon-assisted BTBT /
                             ! dressing-conversion channel (see ib_scale above)
                             if (src_cb .neqv. (eval(b, jq) > emid)) gam = gam * ibs

@@ -156,6 +156,16 @@ module bloch_solver_ssbe
         logical :: flag_eph     = .false.
         real(8) :: eph_nusat_au = 0d0   ! saturation rate nu_sat [1/a.u.time]
         real(8) :: eph_eps0_au  = 0d0   ! nu(eps) onset eps_0 [Ha]
+        real(8) :: eph_kt_au    = 0d0   ! phonon-bath kT [Ha]: detailed balance on the
+                                        ! REALIZED transfer needs kT, not only N_B(hw_p)
+        ! Enforce detailed balance on the realized transfer (and a pair-symmetric nu).
+        ! Set from the material: ON for the gapless 2D Dirac materials, where the
+        ! appended acoustic mode is ~5 meV against a ~0.1 eV search width and the
+        ! historical per-mode split runs the carriers to thousands of K with no field.
+        ! OFF elsewhere, so the gapped materials stay bit-identical to their published
+        ! validations -- the same violation exists there, but sigma/hw is O(1) rather
+        ! than O(20), so it is a small correction rather than a runaway.
+        logical :: eph_db_realized = .false.
         real(8) :: eph_n        = 2d0   ! nu(eps) shape exponent
         real(8) :: eph_ib_scale = 1d0   ! gap-straddling (BTBT) rate calibration factor
         real(8) :: eph_sigma_au = 0d0   ! energy-bin width sigma_E [Ha]
@@ -333,6 +343,8 @@ subroutine init_eph_phonon_table(sbe, mp, kT_au, ac_qtyp_au, ac_xi_ev)
         end if
     end if
     sbe%eph_nph = np + nadd
+    sbe%eph_kt_au = kT_au
+    sbe%eph_db_realized = mp%auger_2d_rana        ! the gapless 2D Dirac materials
     allocate(sbe%eph_hw(np+nadd), sbe%eph_nb(np+nadd), sbe%eph_wrel(np+nadd))
 
     wsum = sum(mp%eph_wraw(1:np)) + wraw_ac
@@ -2563,7 +2575,7 @@ end subroutine apply_impact_ionization
 !=============================================================================
 subroutine apply_eph_relaxation(sbe, nba, rho_ad, evals, Ac, tau)
     use sbe_superres_ssbe, only: nu_saturation, gaussian_shape, amp_damp_channel, &
-                                 eph_thermal_split
+                                 eph_thermal_split, eph_thermal_split_de
     implicit none
     type(s_sbe_bloch_solver), intent(in)    :: sbe
     integer,                  intent(in)    :: nba
@@ -2573,7 +2585,7 @@ subroutine apply_eph_relaxation(sbe, nba, rho_ad, evals, Ac, tau)
     real(8),                  intent(in)    :: tau
 
     integer :: ia, ib, b_em, b_ab, ip
-    real(8) :: f, a2half, eps_kin, nu, hw, sig, ekin, fe, fa
+    real(8) :: f, a2half, eps_kin, nu, nu_p, hw, sig, ekin, fe, fa
     real(8) :: best_em, best_ab, dE, shp, gam, blk
     real(8), parameter :: occ_eps = 1d-12
 
@@ -2597,7 +2609,6 @@ subroutine apply_eph_relaxation(sbe, nba, rho_ad, evals, Ac, tau)
         ! the total channel rate stays ~ nu(eps).
         do ip = 1, sbe%eph_nph
             hw = sbe%eph_hw(ip)
-            call eph_thermal_split(sbe%eph_nb(ip), fe, fa)
             ! best energy-matched emission (below) and absorption (above)
             b_em = 0; best_em = huge(1d0)
             b_ab = 0; best_ab = huge(1d0)
@@ -2612,21 +2623,53 @@ subroutine apply_eph_relaxation(sbe, nba, rho_ad, evals, Ac, tau)
                 end if
             end do
 
+            ! Detailed balance on the REALIZED transfer and a pair-symmetric nu --
+            ! the same two corrections as the inter-k twin (eph_thermal_split_de).
+            if (.not. sbe%eph_db_realized) call eph_thermal_split(sbe%eph_nb(ip), fe, fa)
             if (b_em > 0) then
                 shp = gaussian_shape(best_em, sig)
                 blk = min(max(1d0 - real(rho_ad(b_em, b_em)) / f, 0d0), 1d0)
-                gam = nu * sbe%eph_wrel(ip) * fe * shp * blk
+                nu_p = nu
+                if (sbe%eph_db_realized) then
+                    call eph_thermal_split_de(evals(ia) - evals(b_em), sbe%eph_kt_au, fe, fa)
+                    nu_p = pair_nu(sbe, nu, evals(b_em))
+                end if
+                gam = nu_p * sbe%eph_wrel(ip) * fe * shp * blk
                 call amp_damp_channel(nba, rho_ad, ia, b_em, gam, tau)
             end if
-            if (b_ab > 0 .and. fa > 0d0) then
-                shp = gaussian_shape(best_ab, sig)
-                blk = min(max(1d0 - real(rho_ad(b_ab, b_ab)) / f, 0d0), 1d0)
-                gam = nu * sbe%eph_wrel(ip) * fa * shp * blk
-                call amp_damp_channel(nba, rho_ad, ia, b_ab, gam, tau)
+            if (b_ab > 0) then
+                nu_p = nu
+                if (sbe%eph_db_realized) then
+                    call eph_thermal_split_de(evals(b_ab) - evals(ia), sbe%eph_kt_au, fe, fa)
+                    nu_p = pair_nu(sbe, nu, evals(b_ab))
+                end if
+                if (fa > 0d0) then
+                    shp = gaussian_shape(best_ab, sig)
+                    blk = min(max(1d0 - real(rho_ad(b_ab, b_ab)) / f, 0d0), 1d0)
+                    gam = nu_p * sbe%eph_wrel(ip) * fa * shp * blk
+                    call amp_damp_channel(nba, rho_ad, ia, b_ab, gam, tau)
+                end if
             end if
         end do
     end do
 end subroutine apply_eph_relaxation
+
+
+! Pair-symmetric collision prefactor: nu depends on the carrier's distance from the
+! nearest band edge, so nu(eps_a) alone gives a pair two different rates for its two
+! directions and breaks detailed balance independently of the Bose factors. The
+! geometric mean is the symmetric interpolation that leaves nu unchanged when the two
+! energies coincide.
+pure function pair_nu(sbe, nu_a, eval_b) result(nu_pair)
+    use sbe_superres_ssbe, only: nu_saturation
+    implicit none
+    type(s_sbe_bloch_solver), intent(in) :: sbe
+    real(8), intent(in) :: nu_a, eval_b
+    real(8) :: nu_pair, eps_b
+    eps_b = max(eval_b - sbe%eph_ecbm_au, sbe%eph_evbm_au - eval_b, 0d0)
+    nu_pair = sqrt(max(nu_a, 0d0) * nu_saturation(eps_b, sbe%eph_nusat_au, &
+                                                  sbe%eph_eps0_au, sbe%eph_n))
+end function pair_nu
 
 
 !=============================================================================
@@ -2949,7 +2992,8 @@ subroutine apply_ring_channels(sbe, gs, Ac, efield_au, tau)
                 call eph_interk_dpop(nk, nba, eval_all, f_all, sbe%occ_max, a2half, &
                          sbe%eph_ecbm_au, sbe%eph_evbm_au, sbe%eph_nph, &
                          sbe%eph_hw(1:sbe%eph_nph), sbe%eph_wrel(1:sbe%eph_nph), &
-                         sbe%eph_nb(1:sbe%eph_nph), sbe%eph_nusat_au, sbe%eph_eps0_au, &
+                         sbe%eph_nb(1:sbe%eph_nph), sbe%eph_kt_au, sbe%eph_db_realized, &
+                         sbe%eph_nusat_au, sbe%eph_eps0_au, &
                          sbe%eph_n, sbe%eph_sigma_au, tau, dpop, gout, &
                          kidx=sbe%kmap_idx, kn=sbe%kmap_n, pol_tab=opts%vq_tab, &
                          pol_norm=pnorm, ip_polar=1, ac_tab=actab, ip_ac=ipac_use, &
@@ -2958,7 +3002,8 @@ subroutine apply_ring_channels(sbe, gs, Ac, efield_au, tau)
                 call eph_interk_dpop(nk, nba, eval_all, f_all, sbe%occ_max, a2half, &
                          sbe%eph_ecbm_au, sbe%eph_evbm_au, sbe%eph_nph, &
                          sbe%eph_hw(1:sbe%eph_nph), sbe%eph_wrel(1:sbe%eph_nph), &
-                         sbe%eph_nb(1:sbe%eph_nph), sbe%eph_nusat_au, sbe%eph_eps0_au, &
+                         sbe%eph_nb(1:sbe%eph_nph), sbe%eph_kt_au, sbe%eph_db_realized, &
+                         sbe%eph_nusat_au, sbe%eph_eps0_au, &
                          sbe%eph_n, sbe%eph_sigma_au, tau, dpop, gout, &
                          kidx=sbe%kmap_idx, kn=sbe%kmap_n, &
                          ac_tab=actab, ip_ac=ipac_use, ib_scale=sbe%eph_ib_scale, &
@@ -2968,7 +3013,8 @@ subroutine apply_ring_channels(sbe, gs, Ac, efield_au, tau)
             call eph_interk_dpop(nk, nba, eval_all, f_all, sbe%occ_max, a2half, &
                      sbe%eph_ecbm_au, sbe%eph_evbm_au, sbe%eph_nph, &
                      sbe%eph_hw(1:sbe%eph_nph), sbe%eph_wrel(1:sbe%eph_nph), &
-                     sbe%eph_nb(1:sbe%eph_nph), sbe%eph_nusat_au, sbe%eph_eps0_au, &
+                     sbe%eph_nb(1:sbe%eph_nph), sbe%eph_kt_au, sbe%eph_db_realized, &
+                     sbe%eph_nusat_au, sbe%eph_eps0_au, &
                      sbe%eph_n, sbe%eph_sigma_au, tau, dpop, gout, &
                      ib_scale=sbe%eph_ib_scale, e_src_lo=sbe%ring_e_lo, e_src_hi=sbe%ring_e_hi)
         end if
