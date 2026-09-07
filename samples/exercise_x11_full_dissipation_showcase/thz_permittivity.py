@@ -10,7 +10,11 @@ disagree by three orders of magnitude, and the disagreement is the point.
              filled sea at every A. An nb-band basis does not: it leaves eta N_e A/V,
              with eta the oscillator strength the truncation fails to capture (the
              startup banner prints it). This is a BASIS effect, not a mesh effect -- a
-             denser k-mesh does not touch it. What is left is reversible, tracking A(t)
+             denser k-mesh does not touch it. Measure eta on the LOWEST field available:
+             at high field the slope of J against A also carries the real free carriers
+             (60 % of it for GaAs at 1043 kV/cm), so reading eta there overstates it. On
+             this archive the clean numbers are 0.73 % (Si) and 1.03 % (GaAs), both at
+             104 kV/cm, where the carriers contribute nothing to the slope. What is left is reversible, tracking A(t)
              rather than E(t), and at THz it is ruinous: the residue scales as A = E/w
              while the polarisation current it has to be compared with scales as w E, so
              the contamination grows as 1/w^2. eta of a per cent is invisible in the
