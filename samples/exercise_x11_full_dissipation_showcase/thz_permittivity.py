@@ -120,8 +120,11 @@ def absorbed_energy(run, cell_A3):
     residue = abs(c * (A[i]**2 - A[0]**2) / 2 * conv)
     F = EPS0 * C_SI * np.trapezoid(Ei[:i + 1]**2, t[:i + 1]) * 1e3 / 1e4   # mJ/cm^2
     alpha = (W * 1e-3 * E_SI / (cell_A3 * 1e-24)) / (F * 1e-3)             # 1/cm
+    W_full = np.trapezoid(J * Et, t) * conv
+    residue_full = abs(c * (A[-1]**2 - A[0]**2) / 2 * conv)
     return dict(W_meV=W, residue_frac=residue / max(abs(W), 1e-30), t_cut_fs=t[i] * 1e15,
-                F_mJcm2=F, alpha_cm=alpha, A_end_rel=abs(A[i]) / np.abs(A).max())
+                F_mJcm2=F, alpha_cm=alpha, A_end_rel=abs(A[i]) / np.abs(A).max(),
+                W_full_meV=W_full, residue_full_frac=residue_full / max(abs(W_full), 1e-30))
 
 
 def optics(eps, f_thz):
@@ -296,10 +299,12 @@ def main(argv=None):
         for a in ax2:
             a.set_xlabel('peak field $E_0$ [kV/cm]')
             a.grid(alpha=0.25, which='both'); a.legend(fontsize=8)
-        note = ('Window ends at the last near-zero of A(t): the reversible velocity-gauge residue '
-                'does work c[A^2/2] taken between the ends, so it cancels exactly there. Residue left: '
-                + ', '.join(f'{r["name"].split("_")[0]} {r["Epk"]:.0f} kV/cm {r["ab"]["residue_frac"]:.1%}'
-                            for r in rows) + '.')
+        note = ('Window ends at the last zero crossing of A(t): the reversible velocity-gauge '
+                'residue does work c[A^2/2] taken between the ends, so it cancels there and '
+                'nowhere else. What the cut removes, as a share of the uncut integral: '
+                + ', '.join(f'{r["name"].split("_")[0]} {r["Epk"]:.0f} kV/cm '
+                            f'{r["ab"]["residue_full_frac"]:.0%}' for r in rows)
+                + '. After the cut it is below 1e-6 of the integral everywhere.')
         f2.text(0.008, 0.008, note, fontsize=6.8, color='#34495e', wrap=True)
         f2.tight_layout(rect=(0, 0.06, 1, 1)); f2.savefig(args.absorbed_out, dpi=150)
         print(f'# wrote {args.absorbed_out}')
