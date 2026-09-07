@@ -344,7 +344,15 @@ subroutine init_eph_phonon_table(sbe, mp, kT_au, ac_qtyp_au, ac_xi_ev)
     end if
     sbe%eph_nph = np + nadd
     sbe%eph_kt_au = kT_au
-    sbe%eph_db_realized = mp%auger_2d_rana        ! the gapless 2D Dirac materials
+    ! Detailed balance on the REALIZED transfer, for every material. The split has to
+    ! be taken at the energy a pair actually moves, not at hw_p, whenever the matching
+    ! width is not small against the phonon energies -- and it never is: sigma/hw runs
+    ! 3.2..20 for silicon (0.2 eV against a 13.25 meV appended acoustic mode carrying
+    ! 23.4 % of the weight) just as it runs ~20 for graphene. Restricting this to the
+    ! 2D Dirac registry was a staging decision, not a physical one; wiki/12 has the
+    ! measurement that closed it, including why narrowing sigma is not an alternative
+    ! (it removes the leak and the useful relaxation in equal measure).
+    sbe%eph_db_realized = .true.
     allocate(sbe%eph_hw(np+nadd), sbe%eph_nb(np+nadd), sbe%eph_wrel(np+nadd))
 
     wsum = sum(mp%eph_wraw(1:np)) + wraw_ac
