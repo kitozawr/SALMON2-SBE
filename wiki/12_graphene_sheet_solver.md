@@ -1358,9 +1358,16 @@ disagreed by a factor 5 on the worst pre-fix point, now agree to $0.1$–$7\,\%$
 runs pass the dark control and fail the energy ledger: $A = -0.538$ against $A_E = -0.906$
 at 3 kV/cm, $T + R = 1.54$, and with the drive exactly zero over the last 60 fs the current
 sits at its maximum and is still growing. The phonon bath is not the source — $\Delta
-E_{\rm eph}$ is negative there too. The suspect is the Rana Auger channel, whose
-$\Delta N$ is negative at every field: it is recombining, and a doped gapless sheet has no
-holes for its Drude carriers to recombine with. The fields from 30 kV/cm up are unaffected,
+E_{\rm eph}$ is negative there too. Two suspects were tested and both cleared: switching the Rana Auger channel off
+reproduces the numbers to five figures, and the self-consistent sheet field is on in the
+run that behaves. **It is e-ph.** With `yn_sbe_eph = 'n'` at 3 kV/cm the absorption turns
+positive ($A = +0.0095$ against $-0.538$), the balance closes ($T+R = 0.990$ against
+$1.538$) and the current decays to $14\,\%$ of its peak instead of standing at its maximum
+with the drive at zero. So the low-field gain lives in the same channel the
+detailed-balance correction repaired — a second, smaller fault that the zero-field control
+cannot see, because it wakes only once the field displaces the distribution. The next
+discriminator is the parameter behind the first fault: repeat at
+`sbe_search_sigma_e_ev = 0.005` and see whether the gain follows $\sigma$. The fields from 30 kV/cm up are unaffected,
 which is why the drift-law test above stands; the two low points are drawn hollow and not
 fitted. The existing CPTP
 tests could not have caught this — trace was conserved, populations stayed in range,

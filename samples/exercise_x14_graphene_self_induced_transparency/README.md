@@ -1224,11 +1224,33 @@ against 0.930049, A = −0.538351 against −0.538301, A_E = −0.905860 against
 3 kV/cm, and the same at 10. The Rana channel is not the source of the low-field gain.
 
 What that leaves: e-ph and the self-consistent sheet field. The dark control is clean
-(|J|max = 5.3×10⁻¹⁹), so whatever it is needs the field to seed it. The ledger at 3 kV/cm
-says the carriers hand 0.015 meV/cell to the lattice and 0.008 meV/cell to the field —
-the initial state is relaxing and part of the release goes out through radiation reaction.
-Why that exceeds what the pulse deposited is not understood. The next cheap discriminator
-is `yn_sbe_eph = 'n'` at 3 kV/cm, leaving only the sheet.
+(|J|max = 5.3×10⁻¹⁹), so whatever it is needs the field to seed it.
+
+**It is e-ph.** Repeating 3 kV/cm with `yn_sbe_eph = 'n'` and the sheet field still on:
+
+| 3 kV/cm | e-ph on | e-ph off |
+|---|---|---|
+| T | 0.930 | 0.709 |
+| R | 0.608 | 0.281 |
+| A | **−0.538** | **+0.0095** |
+| A_E | −0.906 | +0.0044 |
+| T + R | **1.538** | **0.990** |
+| \|J\|end / \|J\|max | **1.00** | **0.14** |
+
+Absorption turns positive, the energy balance closes, and the current decays to 14 % of
+its peak instead of sitting at its maximum with the drive at zero. So the sheet self-field
+is exonerated along with Auger, and the low-field gain belongs to the same channel the
+detailed-balance fix repaired — a second, smaller fault in it that the zero-field control
+cannot see, because it only wakes once the field displaces the distribution.
+
+(The residual A = 0.0095 against A_E = 0.0044 flags because the test is relative; in
+absolute terms it is 0.005 on a 1 % absorption, with 14 % of the current still un-decayed
+at the end of the window.)
+
+The next discriminator is the parameter that produced the first fault: repeat 3 kV/cm with
+`sbe_search_sigma_e_ev = 0.005` instead of 0.1, i.e. a matching width of order the acoustic
+phonon itself. If the gain falls with σ it is the same disease, curable by narrowing the
+window or by matching energies more carefully.
 
 **The law extrapolated to the sample's own doping.** `drift_fit_plot.py --predict-ef 0.2`
 draws T(E₀) for another doping with nothing fitted: the equilibrium Drude weight
