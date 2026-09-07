@@ -1397,6 +1397,22 @@ The lesson generalises past this bug: **a dark control run on a cheap mesh is no
 evidence of health**, because the very threshold that makes it cheap also makes it
 silent. Run the control on the production mesh.
 
+**What the widened gate does to it.** The same $9^3$ control, same input, rebuilt with
+`eph_db_realized = .true.`:
+
+| | $n_{\rm elec}$ at 10 fs | at 20 fs | at 30 fs | ledger, whole run |
+|---|---|---|---|---|
+| historical split | $4.39\times10^{11}$ | $8.78\times10^{11}$ | $1.32\times10^{12}$ | $\delta N_{\rm eph} = 5.44\times10^{-11}$, $\delta E_{\rm eph} = +3.25\times10^{-12}$ Ha |
+| realized transfer | 0 | 0 | 0 | identically 0, every channel, every row |
+
+Not reduced — gone. $\sum|{\rm ledger}|$ over the entire run is exactly zero, so e-ph,
+impact ionization and the rest all stand down when there is nothing to act on, which is
+what a dissipator with no carriers and no field is supposed to do. (`nhole` in the
+corrected run carries a static $-1.14\times10^{10}$ cm$^{-3}$ offset, bit-identical from
+the first output to the last; it is reference bookkeeping, not dynamics, and it does not
+grow.) The full test suite is 32/32 on the widened gate, and the 2D Dirac materials are
+bit-identical since they already took this branch.
+
 `tests/test_eph_detailed_balance.f90` holds a Dirac spectrum at an exact
 $f_{\rm FD}(T_{\rm bath})$ and requires the channel to leave it alone; checks 5–6 repeat
 the criterion on the gapped 3D spectrum with the silicon table at $\sigma = 0.2$ eV.
