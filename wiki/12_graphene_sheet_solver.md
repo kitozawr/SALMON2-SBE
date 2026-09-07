@@ -1348,6 +1348,28 @@ $\sigma$ that decide this, not the detail of the weights. So the violation is **
 small correction for Si and GaAs; enabling the gate there is a physics decision about
 re-validating those materials, not a question of whether the correction matters.
 
+**Narrowing $\sigma$ is not an alternative.** The leak is governed by the search width,
+so the obvious cheaper remedy is to shrink it rather than touch the split. Measured on
+the real silicon spectrum, it does not work. The quantity that matters is the leak per
+unit of *useful* relaxation — $\Sigma E\,\delta f$ at an exact $f_{\rm FD}(300$ K$)$,
+where the channel must do nothing, over the same sum at $f_{\rm FD}(600$ K$)$, where it
+must cool the carriers into the lattice:
+
+| $\sigma$ [eV] | 0.400 | 0.200 | 0.100 | 0.050 | 0.030 | 0.020 |
+|---|---|---|---|---|---|---|
+| $\|{\rm leak/rate}\|$, historical | 9.7e-2 | 2.0e-2 | 3.0e-2 | 3.0e-2 | 8.6e-3 | 3.9e-6 |
+| $\|{\rm leak/rate}\|$, realized | 2.1e-4 | 8.7e-10 | 1.3e-9 | 1.5e-10 | 1.5e-11 | 8.1e-12 |
+
+The historical ratio is **flat at 2–3 %** from 0.2 down to 0.05 eV: narrowing removes
+leak and useful work in equal measure. It improves only at 0.02–0.03 eV, and there the
+rate has fallen four orders ($-3.6\times10^{-10} \to -6.2\times10^{-14}$) — the channel
+is switched off, not corrected. There is no window in which the violation is small and
+the channel still relaxes. (Note the grid guard is not the binding constraint here: it
+compares $\sigma$ to the mean spacing of the *band ladder* at one $k$, 1.9 eV on this
+mesh, whereas the density of final states within 0.5 eV of the CBM gives a real matching
+floor near 10 meV.) The realized-transfer split reaches $8.7\times10^{-10}$ at the
+production width with the rate intact, which the width alone never does.
+
 One thing the 3D case does *not* show is a zero-field pump in a dark run. `dressed_ref`
 makes the ring read the excess-carrier measure, which is identically zero for every band
 — valence included — at $A = 0$, so an undoped gapped material is inert in the dark by
