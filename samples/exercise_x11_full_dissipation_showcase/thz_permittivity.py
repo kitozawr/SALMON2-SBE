@@ -95,8 +95,10 @@ def absorbed_energy(run, cell_A3):
     still deliver -- but only if the window is chosen right. The residue J ~ -cA does
     work c[A^2/2] taken between the ends, so it cancels EXACTLY when A starts and
     finishes at zero, and not at all otherwise. These records stop mid-pulse with A at
-    20-40 % of its peak, where the residue is 16-148 % of the raw integral; cutting at
-    the last sample where |A| is smallest drops that to 0.2-6 %. Projecting the residue
+    20-40 % of its peak, where the leftover is 148, 94 and 2.8 % of the raw integral for
+    Si at 104, 1086 and 3258 kV/cm and 0.5, 5.9 and 4.3 % for GaAs at 104, 1043 and 3129.
+    Cutting at the last sample where |A| is smallest -- on these records the last zero
+    crossing of A -- drops it below 1e-6 of the integral, out of sight. Projecting the residue
     out instead over-subtracts (it takes some of the real dissipative response with it)
     and returns negative absorption, so the window, not the projection, is the repair.
     """
