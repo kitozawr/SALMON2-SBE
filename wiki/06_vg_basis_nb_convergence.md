@@ -344,3 +344,43 @@ without flattening. At 1043 kV/cm the ponderomotive reach is large and each adde
 conduction band opens real absorption, so **$n_b = 20$ is not converged for silicon at
 this field even with the sum rule on** — the two requirements are independent, and
 satisfying one does not excuse the other. (For the band budget by field strength, §7.)
+
+## Addendum (2026-09-08): the same scan for GaAs, which behaves differently
+
+Silicon's corrected absorbed work was still climbing at the largest basis tried, so it
+is worth recording that this is a property of the material and the field, not a general
+verdict on the method. Repeating the scan for GaAs — its production ground state
+(9³ mesh, $a = 10.683$ bohr, `epm_pw_cutoff_ry = 12`), the pure-gauge restoration on,
+dissipators off, the same measured DAST transient:
+
+| $n_b$ | $\eta$ (banner) | absorbed work [eV/cell] | step |
+|---|---|---|---|
+| 24 | 0.65 % | $2.0976\times10^{-4}$ | |
+| 32 | 0.44 % | $2.2559\times10^{-4}$ | +7.5 % |
+| 40 | 0.37 % | $2.3600\times10^{-4}$ | +4.6 % |
+
+Each step is *smaller* than the last (ratio 0.61), where silicon's grew (+24 % then
++74 %, ratio 3.1). Summing the geometric tail puts $n_b = 40$ within about 7 % of the
+converged value and the production $n_b = 32$ within about 12 %. The residual $\eta$
+after the restoration is 0.0164–0.0167 % at all three, i.e. basis-independent, as it is
+for silicon. **So GaAs needs the sum rule and nothing else; silicon needs the sum rule
+*and* a larger basis.** The two must be decided per material and per field, not once.
+
+*Scope.* The absorbed-work column was measured on a $5^3$ mesh over a 491.7 fs window
+(which contains the pulse peak at 441.8 fs); the $\eta$ column is the production $9^3$.
+The 9³ runs at $n_b = 24$ and 32 were abandoned at 13 h and 42 h of wall time. Whether a
+sequence converges should not depend on the $k$-mesh, but that is an assumption here
+rather than something these runs measured.
+
+Two other things worth knowing about GaAs, both from runs with no field in them. Its
+$\eta$ **plateaus** in the band count (1.61, 0.65, 0.44, 0.37 % at $n_b$ = 16, 24, 32,
+40) but responds to the plane-wave cutoff: at $n_b = 32$, raising `epm_pw_cutoff_ry`
+from 12 to 18 takes $\eta$ from 0.44 % to 0.21 % while the direct gap holds at 1.423 eV
+against the measured 1.42. The cutoff sizes only the ground-state basis, so this costs
+nothing at propagation time. Past 18 Ry the captured strength overshoots ($S = 1.005$ at
+21 Ry) and $\eta$ changes sign, so 18 is the useful setting rather than "as high as
+possible". And its dark control is **silent both before and after** the e-ph gate fix,
+unlike silicon's — with no carriers at zero field the ring has no sources, and GaAs's
+1.42 eV gap puts an across-gap transfer at $7.1\sigma$ rather than silicon's $5.3\sigma$.
+That is not a clean bill of health for GaAs: it means the dark control cannot test it,
+and the thermal-gas criterion (wiki/12) is what does.
