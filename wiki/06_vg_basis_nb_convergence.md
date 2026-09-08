@@ -314,12 +314,32 @@ the sum rule cannot be compared to experiment at face value.
 
 **It cannot be repaired afterwards.** The tempting shortcut is to subtract
 $\eta n_e A$ from an existing $J(t)$ using the banner's $\eta$, and so rescue archived
-runs without recomputing them. It does not work: at $n_b = 8$ that leaves
-$8.65\times10^{-2}$ eV/cell against the exact $1.94\times10^{-4}$, still 446× too large.
-The reason is that $\eta$ is not a constant — measured along the pulse it runs 9.75 %
-at 60 fs, 12.1 % at 180 fs, 20.1 % at 260 fs, 26.4 % at 300 fs, because real carriers
-join the truncation residue as the field grows. A single multiplier undercorrects
-exactly where the absorbed energy accumulates. `tests/test_vg_sumrule` shows the same
-thing from the other side: the pure-gauge current gives $\eta = 0.740$ at $A = 0$ but
-$0.483$ at $A = 0.3$, against a linear $\eta_{\rm lin} = 0.740$ throughout. Only the
-adiabatic subtraction tracks it, and it has to run inside the propagation.
+runs without recomputing them. It does not work, and it does not become workable at a
+larger basis where $\eta$ is small:
+
+| $n_b$ | $\eta$ | raw | $-\eta n_e A$ post-hoc | sum rule (exact) | post-hoc miss |
+|---|---|---|---|---|---|
+| 8 | 9.77 % | $3.546\times10^{-1}$ | $8.647\times10^{-2}$ | $1.939\times10^{-4}$ | 446× |
+| 12 | 2.27 % | $9.773\times10^{-2}$ | $3.544\times10^{-2}$ | $2.401\times10^{-4}$ | 148× |
+| 20 | 0.26 % | $2.953\times10^{-2}$ | $2.240\times10^{-2}$ | $4.189\times10^{-4}$ | **53×** |
+
+(eV/cell, full 600 fs). The reason is that $\eta$ is not a constant — it grows with the
+field, because real carriers join the truncation residue. Along this pulse $n_b = 8$
+runs 9.75 → 12.1 → 26.4 → 47.9 % at 60, 180, 300 and 420 fs, and even $n_b = 20$ runs
+0.23 → 1.13 → 1.73 → 7.35 %. A single multiplier undercorrects exactly where the
+absorbed energy accumulates, which is why the miss only falls from 446× to 53× as
+$\eta$ falls 38-fold. `tests/test_vg_sumrule` shows the same from the other side: the
+pure-gauge current gives $\eta = 0.740$ at $A = 0$ but $0.483$ at $A = 0.3$, against a
+linear $\eta_{\rm lin} = 0.740$ throughout. Only the adiabatic subtraction tracks it,
+and it has to run inside the propagation.
+
+**The sum rule is basis-independent; the physics it uncovers is not.** With
+`yn_sbe_vg_sumrule='y'` the residual $\eta$ is the same at every basis size — 0.0895,
+0.0894 and 0.0894 % at $n_b$ = 8, 12, 20 in the leading tail, and $\le 0.15$ % anywhere
+along the pulse — so the correction itself needs no convergence study. What *does* still
+need one is the response underneath: the corrected absorbed work climbs
+$1.94 \to 2.40 \to 4.19 \times 10^{-4}$ eV/cell over the same $n_b$, monotonically and
+without flattening. At 1086 kV/cm the ponderomotive reach is large and each added
+conduction band opens real absorption, so **$n_b = 20$ is not converged for silicon at
+this field even with the sum rule on** — the two requirements are independent, and
+satisfying one does not excuse the other. (For the band budget by field strength, §7.)
