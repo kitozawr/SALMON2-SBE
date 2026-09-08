@@ -286,7 +286,8 @@ $A$ and for any population, no adjustable quantity. Full account, tables and rec
 ## Addendum (2026-09-07): the same effect in bulk silicon, and what it costs
 
 The 2D sheet made this dramatic, but nothing about it is two-dimensional. Bulk Si on a
-$9^3$ mesh, EPM, driven by the measured DAST THz transient at 1086 kV/cm, dissipators
+$9^3$ mesh, EPM, driven by the measured DAST THz transient — peak $|E_{\rm tot}|$ of
+1043 kV/cm inside the 600 fs window these runs cover — dissipators
 off so the only thing under test is the basis:
 
 | `nstate` | captured strength $S$ | $\eta$ (banner) | $\eta$ from $J/A$ at low field |
@@ -339,7 +340,7 @@ and it has to run inside the propagation.
 along the pulse — so the correction itself needs no convergence study. What *does* still
 need one is the response underneath: the corrected absorbed work climbs
 $1.94 \to 2.40 \to 4.19 \times 10^{-4}$ eV/cell over the same $n_b$, monotonically and
-without flattening. At 1086 kV/cm the ponderomotive reach is large and each added
+without flattening. At 1043 kV/cm the ponderomotive reach is large and each added
 conduction band opens real absorption, so **$n_b = 20$ is not converged for silicon at
 this field even with the sum rule on** — the two requirements are independent, and
 satisfying one does not excuse the other. (For the band budget by field strength, §7.)
