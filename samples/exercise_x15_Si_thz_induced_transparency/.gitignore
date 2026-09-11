@@ -1,0 +1,5 @@
+# make_runs.py regenerates the whole tree in one second; keeping it out of git
+# means the repository never carries duplicated inputs or run output.
+runs/
+*.data
+*.log
